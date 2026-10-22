@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Base de datos local (modo SQLite de desarrollo)
+*.db
+*.sqlite3
+
+# Grafos OSM descargados (se regeneran con scripts/descargar_mapa.py)
+data/grafo.graphml
+data/acapulco/
+
+# Teselas de mapa descargadas (se regeneran con scripts/descargar_teselas.py)
+app/static/control/tiles/
+app/static/control/tiles_acapulco/
+
+# Entorno
+.env
+
+# Editores / sistema
+.vscode/
+.idea/
+.DS_Store

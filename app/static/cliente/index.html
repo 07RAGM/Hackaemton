@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0e14" />
+  <title>Mesh-ResQ · Cliente de Campo</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/cliente/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/cliente/icon.svg" />
+  <style>
+    :root {
+      --bg: #0a0e14;
+      --panel: #121924;
+      --panel-2: #1b2432;
+      --borde: #26313f;
+      --texto: #e8eef6;
+      --texto-dim: #8ea0b5;
+      --verde: #33ff88;
+      --ambar: #ffb020;
+      --rojo: #ff3b3b;
+      --azul: #35c2ff;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--texto);
+      font-family: "Segoe UI", Roboto, system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding-bottom: 132px;
+    }
+    header {
+      position: sticky; top: 0; z-index: 20;
+      background: linear-gradient(180deg, #0a0e14 70%, rgba(10,14,20,.85));
+      padding: 14px 16px 10px;
+      border-bottom: 1px solid var(--borde);
+    }
+    header h1 { margin: 0; font-size: 17px; letter-spacing: .5px; }
+    header h1 span { color: var(--verde); }
+    .cabecera-fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .ir-mando {
+      font-size: 11.5px; color: var(--texto); text-decoration: none; font-weight: 600;
+      border: 1px solid var(--borde); background: var(--panel-2); border-radius: 999px;
+      padding: 5px 11px; white-space: nowrap;
+    }
+    .ir-mando:hover { border-color: var(--azul); color: var(--azul); }
+    .estado {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--panel-2); border: 1px solid var(--borde);
+      border-radius: 999px; padding: 4px 10px; font-size: 12px;
+      color: var(--texto-dim);
+    }
+    .chip b { color: var(--texto); font-weight: 600; }
+    .led { width: 9px; height: 9px; border-radius: 50%; background: var(--texto-dim); }
+    .led.ok { background: var(--verde); box-shadow: 0 0 8px var(--verde); }
+    .led.warn { background: var(--ambar); box-shadow: 0 0 8px var(--ambar); }
+    .led.bad { background: var(--rojo); box-shadow: 0 0 8px var(--rojo); }
+
+    main { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+    .tarjeta {
+      background: var(--panel); border: 1px solid var(--borde);
+      border-radius: 14px; padding: 14px;
+    }
+    .tarjeta h2 {
+      margin: 0 0 10px; font-size: 13px; text-transform: uppercase;
+      letter-spacing: 1px; color: var(--texto-dim); font-weight: 600;
+    }
+    .coord-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .coord { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+    .coord small { display: block; color: var(--texto-dim); font-size: 11px; margin-bottom: 3px; }
+    .coord b { font-size: 18px; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+    .botones-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    button.accion {
+      border: 1px solid var(--borde); background: var(--panel-2); color: var(--texto);
+      border-radius: 12px; padding: 14px 12px; font-size: 14px; font-weight: 600;
+      display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;
+      transition: transform .08s ease, background .15s ease;
+    }
+    button.accion:active { transform: scale(.97); }
+    button.accion .ico { font-size: 22px; }
+    button.accion.rojo { border-color: #5a1f1f; }
+    button.accion.ambar { border-color: #5a4a1f; }
+    button.accion.verde { border-color: #1f5a37; }
+    button.accion.azul { border-color: #1f4a5a; }
+    button.accion.activo { background: #163a26; border-color: var(--verde); }
+
+    .flotante {
+      position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 30;
+      display: flex; gap: 10px;
+    }
+    .flotante button {
+      flex: 1; border: none; border-radius: 16px; padding: 18px 14px;
+      font-size: 15px; font-weight: 700; color: #10161f; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    }
+    #btn-bloqueo { background: linear-gradient(135deg, #ff6b4a, #ff3b3b); color: #fff; }
+    #btn-sync { background: linear-gradient(135deg, #35c2ff, #2a7fff); max-width: 130px; color: #fff; }
+
+    dialog {
+      border: 1px solid var(--borde); background: var(--panel); color: var(--texto);
+      border-radius: 16px; padding: 18px; width: min(460px, calc(100vw - 32px));
+    }
+    dialog::backdrop { background: rgba(0,0,0,.65); }
+    dialog h3 { margin: 0 0 14px; font-size: 16px; }
+    dialog label { display: block; font-size: 13px; color: var(--texto-dim); margin: 10px 0 4px; }
+    dialog select, dialog input, dialog textarea {
+      width: 100%; background: var(--panel-2); color: var(--texto);
+      border: 1px solid var(--borde); border-radius: 10px; padding: 11px; font-size: 15px;
+    }
+    dialog .fila-botones { display: flex; gap: 10px; margin-top: 18px; }
+    dialog .fila-botones button {
+      flex: 1; border-radius: 10px; padding: 13px; font-size: 15px; font-weight: 600;
+      border: 1px solid var(--borde); background: var(--panel-2); color: var(--texto); cursor: pointer;
+    }
+    dialog .fila-botones button.primario { background: var(--verde); color: #0a0e14; border-color: transparent; }
+
+    #toast {
+      position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-140%);
+      background: var(--panel-2); border: 1px solid var(--borde); color: var(--texto);
+      padding: 10px 16px; border-radius: 999px; font-size: 13px; z-index: 60;
+      transition: transform .25s ease; max-width: 90vw; text-align: center;
+    }
+    #toast.ver { transform: translateX(-50%) translateY(0); }
+    #toast.ok { border-color: var(--verde); }
+    #toast.err { border-color: var(--rojo); }
+
+    ul.pendientes { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+    ul.pendientes li {
+      display: flex; justify-content: space-between; gap: 8px;
+      padding: 7px 0; border-bottom: 1px dashed var(--borde); color: var(--texto-dim);
+    }
+    ul.pendientes li:last-child { border-bottom: none; }
+    ul.pendientes .vacio { color: var(--texto-dim); }
+    .hint { font-size: 12px; color: var(--texto-dim); line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="cabecera-fila">
+      <h1>MESH-<span>RESQ</span> · CAMPO</h1>
+      <a class="ir-mando" href="/control/">Mando →</a>
+    </div>
+    <div class="estado">
+      <span class="chip"><span id="led-gps" class="led"></span> GPS <b id="txt-gps">—</b></span>
+      <span class="chip"><span id="led-red" class="led"></span> Enlace <b id="txt-red">—</b></span>
+      <span class="chip">Cola <b id="txt-cola">0</b></span>
+      <span class="chip">Rescatista <b id="txt-id">—</b></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="tarjeta">
+      <h2>Telemetría GNSS</h2>
+      <div class="coord-grid">
+        <div class="coord"><small>Latitud</small><b id="txt-lat">—</b></div>
+        <div class="coord"><small>Longitud</small><b id="txt-lon">—</b></div>
+        <div class="coord"><small>Altitud (m)</small><b id="txt-alt">—</b></div>
+        <div class="coord"><small>Precisión (m)</small><b id="txt-prec">—</b></div>
+      </div>
+      <p class="hint" style="margin:12px 0 0">
+        Los puntos se guardan en <b>IndexedDB</b> aunque no exista enlace con el nodo mesh
+        y se sincronizan automáticamente al recuperar conexión.
+      </p>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Acciones rápidas</h2>
+      <div class="botones-grid">
+        <button class="accion rojo" id="btn-riesgo">
+          <span class="ico">🔥</span> Reportar Riesgo
+        </button>
+        <button class="accion ambar" id="btn-peinado">
+          <span class="ico">🧭</span> <span id="lbl-peinado">Iniciar zona peinada</span>
+        </button>
+        <button class="accion azul" id="btn-punto">
+          <span class="ico">📍</span> Marcar punto GNSS
+        </button>
+        <button class="accion verde" id="btn-sincronizar">
+          <span class="ico">📡</span> Sincronizar ahora
+        </button>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <h2>Cola local (IndexedDB)</h2>
+      <ul class="pendientes" id="lista-cola"><li class="vacio">Sin elementos pendientes</li></ul>
+    </section>
+  </main>
+
+  <div class="flotante">
+    <button id="btn-bloqueo">⛔ REPORTAR BLOQUEO VIAL</button>
+    <button id="btn-sync-flotante">SYNC</button>
+  </div>
+
+  <dialog id="dlg-bloqueo">
+    <h3>⛔ Bloqueo vial</h3>
+    <form method="dialog">
+      <label for="obstaculo">Tipo de obstáculo</label>
+      <select id="obstaculo">
+        <option value="ESCOMBROS">Escombros</option>
+        <option value="ARBOL_CAIDO">Árbol caído</option>
+        <option value="DERRUMBE">Derrumbes / colapso</option>
+        <option value="INUNDACION">Inundación</option>
+        <option value="OTRO">Otro</option>
+      </select>
+      <label for="radio-bloqueo">Radio de bloqueo (m)</label>
+      <input id="radio-bloqueo" type="number" min="5" max="500" value="15" inputmode="numeric" />
+      <label for="desc-bloqueo">Descripción</label>
+      <textarea id="desc-bloqueo" rows="2" placeholder="Ej. Vía cubierta por escombros, paso cerrado"></textarea>
+      <div class="fila-botones">
+        <button value="cancelar" type="submit">Cancelar</button>
+        <button value="enviar" type="submit" class="primario" id="conf-bloqueo">Registrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-riesgo">
+    <h3>🔥 Reporte de riesgo</h3>
+    <form method="dialog">
+      <label for="tipo-riesgo">Tipo de riesgo</label>
+      <select id="tipo-riesgo">
+        <option value="COLAPSO">Colapso estructural</option>
+        <option value="FUGA_GAS">Fuga de gas</option>
+        <option value="INCENDIO">Incendio</option>
+        <option value="QUIMICO">Derrame químico</option>
+        <option value="ELECTRICO">Riesgo eléctrico</option>
+        <option value="INUNDACION">Inundación</option>
+        <option value="OTRO">Otro</option>
+      </select>
+      <label for="gravedad">Nivel de gravedad (1-5)</label>
+      <input id="gravedad" type="number" min="1" max="5" value="3" inputmode="numeric" />
+      <label for="radio-riesgo">Radio de afectación (m)</label>
+      <input id="radio-riesgo" type="number" min="1" max="500" value="25" inputmode="numeric" />
+      <label for="desc-riesgo">Descripción</label>
+      <textarea id="desc-riesgo" rows="2" placeholder="Ej. Olor a gas en edificio B, 3 víctimas"></textarea>
+      <div class="fila-botones">
+        <button value="cancelar" type="submit">Cancelar</button>
+        <button value="enviar" type="submit" class="primario" id="conf-riesgo">Registrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast"></div>
+  <script src="/cliente/app.js"></script>
+</body>
+</html>
