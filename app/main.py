@@ -50,11 +50,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("mesh-resq")
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+TILES_PUEBLA_DIR = os.path.join(STATIC_DIR, "control", "tiles")
 TILES_ACAPULCO_DIR = os.path.join(STATIC_DIR, "control", "tiles_acapulco")
-# Directorio de teselas offline de Acapulco. Las teselas de otro escenario
-# (p. ej. Puebla) quedan intactas en static/control/tiles/ y se pueden usar
-# con MESH_RESQ_TILES_DIR o MESH_RESQ_TILES_URL.
-TILES_DIR = os.getenv("MESH_RESQ_TILES_DIR") or TILES_ACAPULCO_DIR
+# Directorio de teselas offline de Puebla (escenario por defecto). Las teselas
+# de Acapulco quedan en static/control/tiles_acapulco/ y se pueden usar con
+# MESH_RESQ_TILES_DIR o MESH_RESQ_TILES_URL.
+TILES_DIR = os.getenv("MESH_RESQ_TILES_DIR") or TILES_PUEBLA_DIR
 TILES_URL = f"/control/{os.path.basename(TILES_DIR)}/{{z}}/{{x}}/{{y}}.png"
 
 # Mapa en línea por defecto: OSM estándar (estilo normal, sin API key). El
@@ -68,8 +69,8 @@ OSM_TILES_URL = os.getenv(
 def _teselas_locales() -> Optional[dict]:
     """Detecta teselas descargadas en el directorio de teselas activo.
 
-    Si existen, el dashboard las usa por defecto sin configurar variables de
-    entorno (mapa real offline de Acapulco).
+    Se usan en modo offline (MESH_RESQ_TILES_MODO=offline); en modo online el
+    dashboard pide las teselas a OpenStreetMap.
     """
 
     if not os.path.isdir(TILES_DIR):

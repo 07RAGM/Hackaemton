@@ -163,7 +163,7 @@ async function iniciarMapa() {
       if (cont) cont.classList.add('teselas-oscuras');
     }
     if (config.tiles_local) {
-      $('chip-fondo').innerHTML = '<span class="led ok"></span> Acapulco · teselas offline';
+      $('chip-fondo').innerHTML = '<span class="led ok"></span> Puebla · teselas offline';
       $('txt-fondo').textContent = 'teselas OpenStreetMap offline';
     } else {
       $('chip-fondo').innerHTML = '<span class="led ok"></span> OSM en línea';

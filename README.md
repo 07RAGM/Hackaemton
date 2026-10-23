@@ -86,35 +86,43 @@ necesita API key y las teselas se piden al espejo `tile.openstreetmap.de`. La
 pierde internet el mapa sigue operativo con las capas de rescatistas, riesgos y
 bloqueos.
 
-El **grafo de ruteo** (las calles que usa Dijkstra) sí es local. Ya está en
-`data/acapulco/grafo.graphml`; para regenerarlo:
+El escenario por defecto es **Puebla de Zaragoza, Puebla** (centro
+`19.0433, -98.1987`). El **grafo de ruteo** (las calles que usa Dijkstra) es
+local y ya está en `data/grafo.graphml`; para regenerarlo:
 
 ```bash
-python scripts/descargar_mapa.py                 # Acapulco, radio 4 km
-python scripts/descargar_mapa.py --lat 16.868 --lon -99.894 --dist 6000
-# -> data/acapulco/grafo.graphml   (reinicia el backend para cargarlo)
+python scripts/descargar_mapa.py                 # Puebla, radio 4 km
+python scripts/descargar_mapa.py --lat 19.0433 --lon -98.1987 --dist 6000
+# -> data/grafo.graphml   (reinicia el backend para cargarlo)
 ```
 
 No requiere `osmnx`: usa la API Overpass + NetworkX. Sin este archivo el motor
-usa el grafo genérico `data/grafo.graphml` (si existe) o una **rejilla
-sintética** de respaldo centrada en Acapulco.
+usa una **rejilla sintética** de respaldo centrada en Puebla.
+
+**Escenario Acapulco (opcional).** El grafo de Acapulco se conserva en
+`data/acapulco/grafo.graphml`:
+
+```bash
+export MESH_RESQ_GRAFO=./data/acapulco/grafo.graphml
+python scripts/descargar_mapa.py --lat 16.868 --lon -99.894 \
+    --salida data/acapulco/grafo.graphml
+```
 
 **Modo offline opcional.** Si necesitas el mapa sin internet, descarga las
 teselas y activa el modo offline:
 
 ```bash
-python scripts/descargar_teselas.py              # Acapulco, 2.5 km, z13-17
-# -> app/static/control/tiles_acapulco/{z}/{x}/{y}.png
+python scripts/descargar_teselas.py              # Puebla, 2.5 km, z13-17
+# -> app/static/control/tiles/{z}/{x}/{y}.png
 # en el entorno del backend:
 export MESH_RESQ_TILES_MODO=offline
 ```
 
-Las teselas de otros escenarios (p. ej. Puebla) quedan intactas en
-`app/static/control/tiles/` y se pueden usar con
-`MESH_RESQ_TILES_URL=/control/tiles/{z}/{x}/{y}.png`. El modo offline carga
-muchas teselas locales y puede tardar más; el modo en línea es el recomendado
-para el día a día. Respeta la política de uso de la fuente de teselas (áreas
-pequeñas, sin descargas masivas).
+El modo offline carga muchas teselas locales y puede tardar más; el modo en
+línea es el recomendado para el día a día. Las teselas de Acapulco, si se
+descargan con `--salida app/static/control/tiles_acapulco`, se usan con
+`MESH_RESQ_TILES_DIR`. Respeta la política de uso de la fuente de teselas
+(áreas pequeñas, sin descargas masivas).
 
 ### Simulación de incidente (demo / verificación)
 
@@ -154,10 +162,10 @@ ruta cambia al registrar un bloqueo en medio del trayecto.
 │           ├── index.html
 │           ├── dashboard.js
 │           └── vendor/     # Leaflet local (sin CDN ni API keys)
-├── data/                   # acapulco/grafo.graphml (por defecto) + genérico
+├── data/                   # grafo.graphml (Puebla, por defecto) + acapulco/
 ├── scripts/
-│   ├── descargar_mapa.py   # Red vial OSM -> data/acapulco/grafo.graphml
-│   ├── descargar_teselas.py # Teselas offline -> app/static/control/tiles_acapulco
+│   ├── descargar_mapa.py   # Red vial OSM -> data/grafo.graphml (Puebla)
+│   ├── descargar_teselas.py # Teselas offline -> app/static/control/tiles
 │   └── simular_incidente.py
 └── tests/                  # pytest (API, ruteo, utilidades espaciales)
 ```
@@ -202,7 +210,7 @@ A nivel de aplicación las geometrías siempre son diccionarios **GeoJSON**.
 
 ## Motor de ruteo (`app/routing_engine.py`)
 
-* Carga `data/grafo.graphml` (OSMnx) o genera una rejilla sintética.
+* Carga `data/grafo.graphml` (OSM/Overpass) o genera una rejilla sintética.
 * `bloquear_nodo_o_arista(lat, lon, radio)`: **asigna peso `+inf`** a toda
   arista (y nodo) dentro del radio del bloqueo.
 * `calcular_ruta_optima(...)`: Dijkstra sobre el grafo ajustado en tiempo real;
@@ -232,13 +240,15 @@ Cubren, entre otros, los **criterios de aceptación**:
 ## Notas sobre el mapa
 
 * Por defecto el dashboard usa **OpenStreetMap en línea** (estilo normal,
-  teselas de `tile.openstreetmap.de`, atribución a OSM). **No requiere API
-  key** y no hay peticiones a servicios con clave.
+  teselas de `tile.openstreetmap.de`, atribución a OSM) centrado en **Puebla**.
+  **No requiere API key** y no hay peticiones a servicios con clave.
 * La **retícula táctica en canvas** se dibuja siempre debajo: si no hay
   internet, el mapa base sigue visible y las capas operativas no se pierden.
-* El **grafo de ruteo** es local (`data/acapulco/grafo.graphml`) y no depende
-  de las teselas. Para el modo offline de teselas, usa
-  `MESH_RESQ_TILES_MODO=offline` (ver arriba).
+* El **grafo de ruteo** es local (`data/grafo.graphml`, Puebla) y no depende de
+  las teselas. El escenario Acapulco se conserva en
+  `data/acapulco/grafo.graphml` y se activa con `MESH_RESQ_GRAFO`.
+* Para el modo offline de teselas, usa `MESH_RESQ_TILES_MODO=offline`
+  (ver arriba).
 * Para otra zona o un *tile server* propio:
   ```bash
   export MESH_RESQ_TILES_URL="http://tu-servidor/tiles/{z}/{x}/{y}.png"

@@ -4,17 +4,17 @@
 Usa la API pública de **Overpass** y NetworkX, así que **no necesita osmnx**
 (ni GDAL/GEOS). Sin este archivo el motor de ruteo usa una rejilla sintética.
 
-Por defecto descarga Acapulco de Juárez, Guerrero (MX), el área de operación
+Por defecto descarga Puebla de Zaragoza, Puebla (MX), el área de operación
 del proyecto::
 
     python scripts/descargar_mapa.py
-    # -> data/acapulco/grafo.graphml  (4 km alrededor del centro de Acapulco)
+    # -> data/grafo.graphml  (4 km alrededor del centro de Puebla)
 
 Opciones::
 
-    python scripts/descargar_mapa.py --lat 16.868 --lon -99.894 --dist 5000
-    python scripts/descargar_mapa.py --bbox 16.83,-99.93,16.91,-99.85
-    python scripts/descargar_mapa.py --salida /tmp/acapulco.graphml
+    python scripts/descargar_mapa.py --lat 19.0433 --lon -98.1987 --dist 5000
+    python scripts/descargar_mapa.py --bbox 19.00,-98.24,19.08,-98.16
+    python scripts/descargar_mapa.py --salida /tmp/puebla.graphml
 
 Los datos de OpenStreetMap están bajo la licencia ODbL:
 https://www.openstreetmap.org/copyright
@@ -33,11 +33,11 @@ import urllib.request
 import networkx as nx
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SALIDA_POR_DEFECTO = os.path.join(RAIZ, "data", "acapulco", "grafo.graphml")
+SALIDA_POR_DEFECTO = os.path.join(RAIZ, "data", "grafo.graphml")
 
-# Acapulco de Juárez, Guerrero, México (nodo `place=city` de OSM).
-CENTRO_LAT = 16.8680495
-CENTRO_LON = -99.8940182
+# Puebla de Zaragoza, Puebla, México (Zócalo / centro histórico).
+CENTRO_LAT = 19.0433
+CENTRO_LON = -98.1987
 
 OVERPASS = os.getenv("MESH_RESQ_OVERPASS", "https://overpass-api.de/api/interpreter")
 UA = "Mesh-ResQ-GNSS/1.0 (hackathon; descarga unica de red vial)"
@@ -148,7 +148,7 @@ def main() -> int:
     alto_km = (norte - sur) * 110.574
     ancho_km = (este - oeste) * 111.32 * math.cos(math.radians((sur + norte) / 2))
     print(
-        f"⬇️  Descargando red vial de Acapulco/OSM\n"
+        f"⬇️  Descargando red vial de Puebla/OSM\n"
         f"   bbox {sur:.5f},{oeste:.5f} → {norte:.5f},{este:.5f} "
         f"(~{ancho_km:.1f} × {alto_km:.1f} km)"
     )

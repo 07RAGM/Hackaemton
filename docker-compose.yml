@@ -25,10 +25,10 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg2://meshresq:meshresq@db:5432/meshresq
-      # Centro de la rejilla sintética si no hay grafo (Acapulco).
-      MESH_RESQ_CENTRO_LAT: "16.8680495"
-      MESH_RESQ_CENTRO_LON: "-99.8940182"
-      MESH_RESQ_GRAFO: /app/data/acapulco/grafo.graphml
+      # Centro de la rejilla sintética si no hay grafo (Puebla).
+      MESH_RESQ_CENTRO_LAT: "19.0433"
+      MESH_RESQ_CENTRO_LON: "-98.1987"
+      MESH_RESQ_GRAFO: /app/data/grafo.graphml
       # Por defecto el dashboard usa OpenStreetMap en línea (estilo normal,
       # sin API key). La retícula táctica local queda como respaldo sin internet.
       # Para modo offline: MESH_RESQ_TILES_MODO=offline (con el volumen de
@@ -38,7 +38,7 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-      - ./app/static/control/tiles_acapulco:/app/app/static/control/tiles_acapulco
+      - ./app/static/control/tiles:/app/app/static/control/tiles
     restart: unless-stopped
 
 volumes:

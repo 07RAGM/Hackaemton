@@ -18,10 +18,10 @@ sys.path.insert(0, str(RAIZ))
 _TMP = pathlib.Path(tempfile.mkdtemp(prefix="meshresq-test-"))
 os.environ["DATABASE_URL"] = f"sqlite:///{_TMP / 'test.db'}"
 os.environ["MESH_RESQ_GRAFO"] = str(_TMP / "inexistente.graphml")  # -> rejilla sintética
-# Centro de la rejilla de pruebas (Acapulco): debe coincidir con el default
+# Centro de la rejilla de pruebas (Puebla): debe coincidir con el default
 # del motor antes de importarlo.
-os.environ["MESH_RESQ_CENTRO_LAT"] = "16.8680495"
-os.environ["MESH_RESQ_CENTRO_LON"] = "-99.8940182"
+os.environ["MESH_RESQ_CENTRO_LAT"] = "19.0433"
+os.environ["MESH_RESQ_CENTRO_LON"] = "-98.1987"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

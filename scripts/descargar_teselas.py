@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """Descarga teselas de mapa para verlo **offline** en el dashboard.
 
-Guarda las teselas en ``app/static/control/tiles_acapulco/{z}/{x}/{y}.png`` y luego el
+Guarda las teselas en ``app/static/control/tiles/{z}/{x}/{y}.png`` y luego el
 dashboard las sirve desde el propio nodo mesh (sin internet ni API keys).
 
-Uso típico (Acapulco, ~2.5 km alrededor del centro, zooms 13-17):
+Uso típico (Puebla, ~2.5 km alrededor del centro, zooms 13-17):
 
     python scripts/descargar_teselas.py
-    # equivale a: --lat 16.8680495 --lon -99.8940182 \
+    # equivale a: --lat 19.0433 --lon -98.1987 \
     #             --radio 2500 --zoom-min 13 --zoom-max 17
 
 Después define en el entorno del backend:
 
-    MESH_RESQ_TILES_URL=/control/tiles_acapulco/{z}/{x}/{y}.png
+    MESH_RESQ_TILES_URL=/control/tiles/{z}/{x}/{y}.png
     MESH_RESQ_TILES_ATRIBUCION="© OpenStreetMap contributors"
     # MESH_RESQ_TILES_OSCURECER=1   # 0 si tu fuente ya es oscura
 
@@ -33,7 +33,7 @@ import urllib.error
 import urllib.request
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SALIDA_POR_DEFECTO = os.path.join(RAIZ, "app", "static", "control", "tiles_acapulco")
+SALIDA_POR_DEFECTO = os.path.join(RAIZ, "app", "static", "control", "tiles")
 # Servidor de teselas de OpenStreetMap Alemania (FOSSGIS). El servidor
 # principal (tile.openstreetmap.org) bloquea descargas por lotes.
 FUENTE_POR_DEFECTO = "https://tile.openstreetmap.de/{z}/{x}/{y}.png"
@@ -60,8 +60,8 @@ def rango_teselas(min_lat, min_lon, max_lat, max_lon, z):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Descarga teselas de mapa para uso offline.")
-    ap.add_argument("--lat", type=float, default=16.8680495, help="centro del área (Acapulco)")
-    ap.add_argument("--lon", type=float, default=-99.8940182, help="centro del área (Acapulco)")
+    ap.add_argument("--lat", type=float, default=19.0433, help="centro del área (Puebla)")
+    ap.add_argument("--lon", type=float, default=-98.1987, help="centro del área (Puebla)")
     ap.add_argument("--radio", type=float, default=2500, help="radio en metros (por defecto 2500)")
     ap.add_argument("--bbox", type=str, help="alternativa: min_lat,min_lon,max_lat,max_lon")
     ap.add_argument("--zoom-min", type=int, default=13)

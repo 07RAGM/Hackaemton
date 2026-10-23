@@ -35,18 +35,16 @@ except Exception:  # pragma: no cover
     HAS_SHAPELY_WKT = False
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+RUTA_GRAFO_PUEBLA = os.path.join(BASE_DIR, "data", "grafo.graphml")
 RUTA_GRAFO_ACAPULCO = os.path.join(BASE_DIR, "data", "acapulco", "grafo.graphml")
-RUTA_GRAFO_GENERICO = os.path.join(BASE_DIR, "data", "grafo.graphml")
-# Acapulco es el escenario por defecto; si no existe su grafo se usa el
-# genérico (por ejemplo, Puebla) para no romper instalaciones previas.
-RUTA_GRAFO_POR_DEFECTO = (
-    RUTA_GRAFO_ACAPULCO if os.path.exists(RUTA_GRAFO_ACAPULCO) else RUTA_GRAFO_GENERICO
-)
+# Puebla es el escenario por defecto del proyecto. Acapulco queda disponible
+# con MESH_RESQ_GRAFO=./data/acapulco/grafo.graphml.
+RUTA_GRAFO_POR_DEFECTO = RUTA_GRAFO_PUEBLA
 
-# Centro por defecto (Acapulco de Juárez, Guerrero, MX) para la rejilla
+# Centro por defecto (Puebla de Zaragoza, Puebla, MX) para la rejilla
 # sintética cuando no hay un grafo OSM disponible.
-CENTRO_LAT = float(os.getenv("MESH_RESQ_CENTRO_LAT", "16.8680495"))
-CENTRO_LON = float(os.getenv("MESH_RESQ_CENTRO_LON", "-99.8940182"))
+CENTRO_LAT = float(os.getenv("MESH_RESQ_CENTRO_LAT", "19.0433"))
+CENTRO_LON = float(os.getenv("MESH_RESQ_CENTRO_LON", "-98.1987"))
 NODOS_REJILLA = int(os.getenv("MESH_RESQ_NODOS", "15"))
 ESPACIADO_M = float(os.getenv("MESH_RESQ_ESPACIADO_M", "120"))
 VELOCIDAD_M_S = float(os.getenv("MESH_RESQ_VELOCIDAD_M_S", "8.33"))  # ~30 km/h
