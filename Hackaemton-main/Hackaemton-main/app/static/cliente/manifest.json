@@ -1,0 +1,22 @@
+{
+  "name": "Mesh-ResQ GNSS · Cliente de Campo",
+  "short_name": "Mesh-ResQ",
+  "description": "Telemetría GNSS, reporte de bloqueos viales y riesgos para rescatistas en zonas sin conectividad.",
+  "lang": "es",
+  "dir": "ltr",
+  "start_url": "/cliente/",
+  "scope": "/cliente/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0e14",
+  "theme_color": "#0a0e14",
+  "categories": ["navigation", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/cliente/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

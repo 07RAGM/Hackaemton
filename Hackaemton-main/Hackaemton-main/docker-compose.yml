@@ -1,0 +1,45 @@
+# Mesh-ResQ GNSS — Nodo Raspberry Pi / Server + PostGIS
+# Levanta:  docker compose up --build
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: mesh-resq-db
+    environment:
+      POSTGRES_USER: meshresq
+      POSTGRES_PASSWORD: meshresq
+      POSTGRES_DB: meshresq
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meshresq -d meshresq"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: mesh-resq-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://meshresq:meshresq@db:5432/meshresq
+      # Centro de la rejilla sintética si no hay grafo (Acapulco).
+      MESH_RESQ_CENTRO_LAT: "16.8680495"
+      MESH_RESQ_CENTRO_LON: "-99.8940182"
+      MESH_RESQ_GRAFO: /app/data/acapulco/grafo.graphml
+      # Por defecto el dashboard usa OpenStreetMap en línea (estilo normal,
+      # sin API key). La retícula táctica local queda como respaldo sin internet.
+      # Para modo offline: MESH_RESQ_TILES_MODO=offline (con el volumen de
+      # teselas de abajo). MESH_RESQ_TILES_URL tiene prioridad.
+      # MESH_RESQ_TILES_URL: "http://mi-servidor-tiles/{z}/{x}/{y}.png"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./app/static/control/tiles_acapulco:/app/app/static/control/tiles_acapulco
+    restart: unless-stopped
+
+volumes:
+  db_data:
