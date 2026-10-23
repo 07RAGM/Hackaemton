@@ -17,6 +17,8 @@ const zonasDibujadas = new Set();
 
 let mapa = null;
 let rutaLinea = null;
+let marcadorOrigen = null;
+let marcadorDestino = null;
 let origen = null;
 let destino = null;
 let modoPunto = null;
@@ -24,6 +26,19 @@ let primeraCarga = true;
 let centroConfig = { lat: 19.0433, lon: -98.1987 };
 
 const $ = (id) => document.getElementById(id);
+
+const CAPAS_UI = [
+  ['chk-bloqueos', 'bloqueos'],
+  ['chk-riesgos', 'riesgos'],
+  ['chk-zonas', 'zonas'],
+  ['chk-posiciones', 'posiciones'],
+];
+
+const PRESETS = {
+  tactico: ['bloqueos', 'riesgos', 'zonas', 'posiciones'],
+  rescate: ['riesgos', 'zonas', 'posiciones'],
+  ruta: ['bloqueos', 'posiciones'],
+};
 
 // --------------------------------------------------------------------------
 // Utilidades
@@ -57,6 +72,13 @@ function marcarBanner(estado) {
   }
 }
 
+function marcarNodo(estado, texto) {
+  const el = $('nodo-estado');
+  if (!el) return;
+  el.className = `mini-status ${estado}`;
+  el.innerHTML = `<span class="dot"></span> ${texto}`;
+}
+
 function popup(titulo, filas) {
   const cuerpo = filas
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
@@ -76,11 +98,11 @@ const FondoTactico = L.GridLayer.extend({
     tile.height = size.y;
     const ctx = tile.getContext('2d');
 
-    ctx.fillStyle = '#070b11';
+    ctx.fillStyle = '#070707';
     ctx.fillRect(0, 0, size.x, size.y);
 
     // Retícula fina.
-    ctx.strokeStyle = 'rgba(84,116,148,0.16)';
+    ctx.strokeStyle = 'rgba(154,154,154,0.13)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let i = 1; i < 8; i++) {
@@ -91,7 +113,7 @@ const FondoTactico = L.GridLayer.extend({
     ctx.stroke();
 
     // Retícula mayor cada 4 celdas, con acento.
-    ctx.strokeStyle = 'rgba(56,189,248,0.15)';
+    ctx.strokeStyle = 'rgba(214,242,74,0.14)';
     ctx.beginPath();
     for (let i = 2; i < 8; i += 4) {
       const p = Math.round((i * size.x) / 8) + 0.5;
@@ -101,7 +123,7 @@ const FondoTactico = L.GridLayer.extend({
     ctx.stroke();
 
     // Nodos en las intersecciones mayores.
-    ctx.fillStyle = 'rgba(56,189,248,0.38)';
+    ctx.fillStyle = 'rgba(214,242,74,0.38)';
     for (const x of [0.25, 0.75]) {
       for (const y of [0.25, 0.75]) {
         ctx.beginPath();
@@ -111,7 +133,7 @@ const FondoTactico = L.GridLayer.extend({
     }
 
     const nw = this._tileCoordsToBounds(coords).getNorthWest();
-    ctx.fillStyle = 'rgba(122,154,184,0.55)';
+    ctx.fillStyle = 'rgba(154,154,154,0.55)';
     ctx.font = '10px ui-monospace, SFMono-Regular, monospace';
     ctx.fillText(`${nw.lat.toFixed(4)}  ${nw.lng.toFixed(4)}`, 8, 16);
 
@@ -128,6 +150,12 @@ async function iniciarMapa() {
     config = await (await fetch(`${API}/api/config`)).json();
   } catch (_) { /* centro por defecto */ }
   centroConfig = config.centro || centroConfig;
+
+  const fuenteGrafo = String(config.fuente_grafo || '').toLowerCase();
+  const esAcapulco = fuenteGrafo.includes('acapulco');
+  const ciudad = esAcapulco ? 'Acapulco' : 'Puebla';
+  $('ubicacion-nombre').textContent = ciudad;
+  $('ubicacion-region').textContent = esAcapulco ? 'Gro, MX' : 'Pue, MX';
 
   mapa = L.map('mapa', {
     zoomControl: false,
@@ -163,7 +191,7 @@ async function iniciarMapa() {
       if (cont) cont.classList.add('teselas-oscuras');
     }
     if (config.tiles_local) {
-      $('chip-fondo').innerHTML = '<span class="led ok"></span> Puebla · teselas offline';
+      $('chip-fondo').innerHTML = `<span class="led ok"></span> ${ciudad} · teselas offline`;
       $('txt-fondo').textContent = 'teselas OpenStreetMap offline';
     } else {
       $('chip-fondo').innerHTML = '<span class="led ok"></span> OSM en línea';
@@ -184,7 +212,6 @@ async function iniciarMapa() {
     $('txt-fondo').textContent = 'fondo local offline';
   }
 
-  L.control.zoom({ position: 'bottomright' }).addTo(mapa);
   L.control.scale({ position: 'bottomright', imperial: false }).addTo(mapa);
 
   L.marker([centroConfig.lat, centroConfig.lon], {
@@ -210,7 +237,8 @@ async function iniciarMapa() {
   mapa.on('click', (ev) => {
     if (!modoPunto) return;
     const { lat, lng } = ev.latlng;
-    if (modoPunto === 'origen') {
+    const tipo = modoPunto;
+    if (tipo === 'origen') {
       origen = [lat, lng];
       $('in-o-lat').value = lat.toFixed(6);
       $('in-o-lon').value = lng.toFixed(6);
@@ -219,6 +247,7 @@ async function iniciarMapa() {
       $('in-d-lat').value = lat.toFixed(6);
       $('in-d-lon').value = lng.toFixed(6);
     }
+    actualizarMarcadorPunto(tipo, [lat, lng]);
     modoPunto = null;
     $('btn-modo-origen').classList.remove('activo');
     $('btn-modo-destino').classList.remove('activo');
@@ -228,6 +257,7 @@ async function iniciarMapa() {
 
   // El contenedor cambia de tamaño al cargar fuentes/layout: recalcula.
   requestAnimationFrame(() => mapa.invalidateSize());
+  setTimeout(() => mapa && mapa.invalidateSize(), 250);
   window.addEventListener('resize', () => mapa && mapa.invalidateSize());
 }
 
@@ -278,7 +308,7 @@ function dibujarZona(feature) {
   if (zonasDibujadas.has(id)) return;
   zonasDibujadas.add(id);
   L.geoJSON(feature, {
-    style: { color: '#2fe08a', weight: 1.6, fillColor: '#2fe08a', fillOpacity: 0.12 },
+    style: { color: '#8fe3a8', weight: 1.6, fillColor: '#8fe3a8', fillOpacity: 0.12 },
     onEachFeature: (_f, capa) =>
       capa.bindPopup(popup('Zona peinada', [
         ['Cuadrilla', feature.properties.cuadrilla_id],
@@ -293,7 +323,7 @@ function dibujarRiesgo(feature) {
   const radio = feature.properties.radio_afectacion_m || 10;
   marcadoresRiesgo.get(id)?.remove();
   const grupo = L.layerGroup();
-  L.circle([lat, lon], { radius: radio, color: '#ffb020', weight: 1.2, fillColor: '#ffb020', fillOpacity: 0.14 }).addTo(grupo);
+  L.circle([lat, lon], { radius: radio, color: '#ffb84d', weight: 1.2, fillColor: '#ffb84d', fillOpacity: 0.14 }).addTo(grupo);
   L.marker([lat, lon], {
     icon: L.divIcon({ className: '', html: '<div class="marcador-riesgo">!</div>', iconSize: [24, 24], iconAnchor: [12, 12] }),
   }).addTo(grupo).bindPopup(
@@ -313,7 +343,7 @@ function dibujarBloqueo(feature) {
   const radio = feature.properties.radio_bloqueo_m || 15;
   marcadoresBloqueo.get(id)?.grupo.remove();
   const grupo = L.layerGroup();
-  L.circle([lat, lon], { radius: radio, color: '#ff5c5c', weight: 1.6, fillColor: '#ff5c5c', fillOpacity: 0.18 }).addTo(grupo);
+  L.circle([lat, lon], { radius: radio, color: '#ff6b6b', weight: 1.6, fillColor: '#ff6b6b', fillOpacity: 0.18 }).addTo(grupo);
   L.marker([lat, lon], {
     icon: L.divIcon({ className: '', html: '<div class="marcador-bloqueo"></div>', iconSize: [24, 24], iconAnchor: [12, 12] }),
   }).addTo(grupo).bindPopup(
@@ -328,10 +358,23 @@ function dibujarBloqueo(feature) {
 }
 
 function actualizarMetricas() {
-  $('m-bloqueos').textContent = marcadoresBloqueo.size;
-  $('m-riesgos').textContent = marcadoresRiesgo.size;
-  $('m-zonas').textContent = zonasDibujadas.size;
-  $('m-rescatistas').textContent = marcadoresRescate.size;
+  const bloqueos = marcadoresBloqueo.size;
+  const riesgos = marcadoresRiesgo.size;
+  const zonas = zonasDibujadas.size;
+  const unidades = marcadoresRescate.size;
+
+  $('n-bloqueos').textContent = bloqueos;
+  $('n-riesgos').textContent = riesgos;
+  $('n-zonas').textContent = zonas;
+  $('n-posiciones').textContent = unidades;
+  $('m-rescatistas').textContent = unidades;
+
+  const alertas = bloqueos + riesgos;
+  $('hero-alertas').textContent = alertas;
+  const pill = $('hero-pill');
+  pill.className = 'status-pill ' + (alertas === 0 ? 'ok' : alertas >= 3 ? 'bad' : 'warn');
+  $('hero-pill-txt').textContent = alertas === 0 ? 'Sin alertas' : `${alertas} en atención`;
+  $('hero-hora').textContent = new Date().toLocaleTimeString();
 }
 
 function renderEstadoGlobal(fc) {
@@ -356,6 +399,7 @@ function renderEstadoGlobal(fc) {
   }
   led('led-api', 'ok');
   $('txt-api').textContent = 'ok';
+  marcarNodo('ok', 'en línea');
   actualizarMetricas();
 
   if (primeraCarga) { primeraCarga = false; encuadrarDatos(); }
@@ -370,6 +414,7 @@ async function cargarEstadoGlobal() {
   } catch (err) {
     led('led-api', 'bad');
     $('txt-api').textContent = 'error';
+    marcarNodo('bad', 'sin enlace');
     marcarBanner('bad');
   }
 }
@@ -391,6 +436,40 @@ function leerPunto(a, b) {
   return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] : null;
 }
 
+function iconoPunto(destino = false) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="marcador-punto${destino ? ' destino' : ''}"></div>`,
+    iconSize: [17, 17],
+    iconAnchor: [8.5, 8.5],
+  });
+}
+
+function actualizarMarcadorPunto(tipo, coords) {
+  if (!mapa || !coords) return;
+  const [lat, lon] = coords;
+  if (tipo === 'origen') {
+    if (marcadorOrigen) marcadorOrigen.setLatLng([lat, lon]);
+    else {
+      marcadorOrigen = L.marker([lat, lon], {
+        icon: iconoPunto(false), zIndexOffset: 700,
+      }).addTo(mapa);
+    }
+  } else {
+    if (marcadorDestino) marcadorDestino.setLatLng([lat, lon]);
+    else {
+      marcadorDestino = L.marker([lat, lon], {
+        icon: iconoPunto(true), zIndexOffset: 700,
+      }).addTo(mapa);
+    }
+  }
+}
+
+function limpiarMarcadoresPunto() {
+  if (marcadorOrigen) { marcadorOrigen.remove(); marcadorOrigen = null; }
+  if (marcadorDestino) { marcadorDestino.remove(); marcadorDestino = null; }
+}
+
 async function calcularRuta() {
   origen = leerPunto('in-o-lat', 'in-o-lon');
   destino = leerPunto('in-d-lat', 'in-d-lon');
@@ -399,6 +478,8 @@ async function calcularRuta() {
     panel.innerHTML = '<span class="err">Define origen y destino.</span>';
     return;
   }
+  actualizarMarcadorPunto('origen', origen);
+  actualizarMarcadorPunto('destino', destino);
   const velKmh = Number($('in-velocidad').value) || 30;
   try {
     const params = new URLSearchParams({
@@ -414,7 +495,7 @@ async function calcularRuta() {
       return;
     }
     if (rutaLinea) rutaLinea.remove();
-    rutaLinea = L.geoJSON(datos.geojson, { style: { color: '#38bdf8', weight: 5, opacity: 0.95, lineJoin: 'round' } }).addTo(mapa);
+    rutaLinea = L.geoJSON(datos.geojson, { style: { color: '#d6f24a', weight: 5, opacity: 0.95, lineJoin: 'round' } }).addTo(mapa);
     rutaLinea.bindPopup(popup('Ruta óptima', [
       ['Distancia', (datos.distancia_m / 1000).toFixed(2) + ' km'],
       ['Duración est.', Math.round(datos.duracion_s / 60) + ' min'],
@@ -438,6 +519,7 @@ function limpiarRuta() {
 
 function reiniciarVista() {
   limpiarRuta();
+  limpiarMarcadoresPunto();
   for (const id of ['in-o-lat', 'in-o-lon', 'in-d-lat', 'in-d-lon']) $(id).value = '';
   origen = null; destino = null; modoPunto = null;
   $('btn-modo-origen').classList.remove('activo');
@@ -458,6 +540,7 @@ window.MeshResQ = {
     } else {
       destino = [lat, lon]; $('in-d-lat').value = lat.toFixed(6); $('in-d-lon').value = lon.toFixed(6);
     }
+    actualizarMarcadorPunto(tipo, [lat, lon]);
     mapa.closePopup();
     log(`Punto de ${tipo} fijado (${Number(lat).toFixed(5)}, ${Number(lon).toFixed(5)})`);
     if ($('chk-autorruta').checked && origen && destino) calcularRuta();
@@ -484,6 +567,7 @@ function conectarWS() {
     led('led-ws', 'ok');
     $('txt-ws').textContent = 'ok';
     marcarBanner('ok');
+    marcarNodo('ok', 'en vivo');
     log('Enlace en vivo establecido');
   };
   ws.onmessage = (e) => { try { manejarMensaje(JSON.parse(e.data)); } catch { /* ignora */ } };
@@ -491,6 +575,7 @@ function conectarWS() {
     led('led-ws', 'bad');
     $('txt-ws').textContent = 'reconectando';
     marcarBanner('warn');
+    marcarNodo('warn', 'reconectando');
     clearTimeout(reintento);
     reintento = setTimeout(conectarWS, 3000);
   };
@@ -535,6 +620,19 @@ function manejarMensaje(msg) {
 // --------------------------------------------------------------------------
 // Controles
 // --------------------------------------------------------------------------
+function aplicarPreset(nombre) {
+  const activas = new Set(PRESETS[nombre] || PRESETS.tactico);
+  for (const [id, capa] of CAPAS_UI) {
+    const activa = activas.has(capa);
+    $(id).checked = activa;
+    if (activa) CAPAS[capa].addTo(mapa);
+    else mapa.removeLayer(CAPAS[capa]);
+  }
+  document.querySelectorAll('#presets .opt').forEach((btn) => {
+    btn.classList.toggle('activo', btn.dataset.preset === nombre);
+  });
+}
+
 function enlazarControles() {
   const modo = (cual) => {
     modoPunto = modoPunto === cual ? null : cual;
@@ -556,18 +654,65 @@ function enlazarControles() {
     $('txt-velocidad').textContent = ev.target.value;
   });
 
-  for (const [id, capa] of [['chk-bloqueos', 'bloqueos'], ['chk-riesgos', 'riesgos'], ['chk-zonas', 'zonas'], ['chk-posiciones', 'posiciones']]) {
+  for (const [id, capa] of CAPAS_UI) {
     $(id).addEventListener('change', (ev) => {
       if (ev.target.checked) CAPAS[capa].addTo(mapa);
       else mapa.removeLayer(CAPAS[capa]);
+      document.querySelectorAll('#presets .opt').forEach((btn) => btn.classList.remove('activo'));
     });
   }
 
-  $('btn-log').addEventListener('click', () => {
-    const caja = $('log');
-    const plegado = caja.classList.toggle('plegado');
-    $('btn-log').textContent = plegado ? 'mostrar' : 'ocultar';
+  document.querySelectorAll('#presets .opt').forEach((btn) => {
+    btn.addEventListener('click', () => aplicarPreset(btn.dataset.preset));
   });
+
+  const botonesZoom = [...document.querySelectorAll('#zoom-rail button')];
+  const marcarZoom = () => {
+    const z = mapa.getZoom();
+    botonesZoom.forEach((btn) => {
+      btn.classList.toggle('activo', Number(btn.dataset.zoom) === z);
+    });
+  };
+  botonesZoom.forEach((btn) => {
+    btn.addEventListener('click', () => mapa.setZoom(Number(btn.dataset.zoom)));
+  });
+  mapa.on('zoomend', marcarZoom);
+  marcarZoom();
+
+  const bitacora = $('bitacora');
+  const alternarBitacora = () => {
+    const oculta = bitacora.classList.toggle('oculto');
+    $('btn-log').classList.toggle('activo', !oculta);
+    $('btn-log').setAttribute('aria-expanded', String(!oculta));
+  };
+  $('btn-log').addEventListener('click', alternarBitacora);
+  $('btn-cerrar-log').addEventListener('click', alternarBitacora);
+}
+
+function enlazarScrollHint() {
+  const sidebar = document.querySelector('.sidebar');
+  const hint = $('scroll-hint');
+  if (!sidebar || !hint) return;
+
+  const actualizar = () => {
+    const desborda = sidebar.scrollHeight > sidebar.clientHeight + 8;
+    const alFinal = sidebar.scrollTop + sidebar.clientHeight >= sidebar.scrollHeight - 12;
+    hint.classList.toggle('hint-off', !desborda || alFinal);
+  };
+
+  hint.addEventListener('click', () => {
+    $('seccion-ruteo').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+  hint.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      hint.click();
+    }
+  });
+  sidebar.addEventListener('scroll', actualizar, { passive: true });
+  window.addEventListener('resize', actualizar);
+  actualizar();
+  setTimeout(actualizar, 300);
 }
 
 function iniciarReloj() {
@@ -584,6 +729,7 @@ async function iniciar() {
   marcarBanner('warn');
   await iniciarMapa();
   enlazarControles();
+  enlazarScrollHint();
   await cargarEstadoGlobal();
   conectarWS();
   setInterval(() => { if (!ws || ws.readyState !== WebSocket.OPEN) cargarEstadoGlobal(); }, 6000);

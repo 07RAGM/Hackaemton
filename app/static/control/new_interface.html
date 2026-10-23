@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NODOMX · Estación de Control</title>
+  <link rel="stylesheet" href="/control/vendor/leaflet.css" />
+  <link rel="icon" href="/cliente/icon.svg" type="image/svg+xml" />
+  <style>
+    :root {
+      --bg: #080808;
+      --panel: #0e0e0e;
+      --panel-2: #131313;
+      --panel-3: #181818;
+      --linea: #242424;
+      --linea-suave: #1b1b1b;
+      --texto: #f4f4f4;
+      --dim: #9a9a9a;
+      --dim-2: #666666;
+      --acento: #d6f24a;
+      --verde: #8fe3a8;
+      --ambar: #ffb84d;
+      --rojo: #ff6b6b;
+      --azul: #d6f24a;
+      --radio: 12px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--bg); color: var(--texto);
+      font-family: "Segoe UI Variable", "Segoe UI", "Inter", Roboto, system-ui, sans-serif;
+      font-size: 14px; overflow: hidden; -webkit-font-smoothing: antialiased;
+    }
+    ::selection { background: rgba(214,242,74,.28); }
+    a { color: inherit; }
+    button, input, select { font: inherit; }
+    .oculto { display: none !important; }
+
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    .topbar {
+      flex: none; height: 78px; display: flex; align-items: center; gap: 18px;
+      padding: 0 30px; border-bottom: 1px solid var(--linea); background: var(--bg);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
+    .logo {
+      width: 27px; height: 27px; border-radius: 50%;
+      background-image: radial-gradient(circle, rgba(255,255,255,.92) 1px, transparent 1.35px);
+      background-size: 5px 5px; background-position: center; opacity: .78;
+    }
+    .brand-name { font-size: 24px; font-weight: 400; letter-spacing: -.6px; }
+    .brand-name .punto { color: var(--acento); }
+    .brand-sub {
+      font-size: 9px; letter-spacing: 2.4px; color: var(--dim-2);
+      font-weight: 600; margin-left: 2px; padding-top: 4px;
+    }
+    .topbar-status {
+      display: flex; align-items: center; gap: 9px; min-width: 0; margin-left: 10px;
+    }
+    .topbar-status .banner-txt {
+      max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .topbar-status .sistema { margin-top: 0; flex-wrap: nowrap; }
+    .top-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+    .vista-switch {
+      display: inline-flex; padding: 3px; border: 1px solid var(--linea);
+      border-radius: 10px; background: var(--panel); overflow: hidden;
+    }
+    .vista-switch a {
+      padding: 7px 15px; font-size: 11.5px; color: var(--dim); text-decoration: none;
+      font-weight: 500; border-radius: 7px; transition: color .15s ease, background .15s ease;
+    }
+    .vista-switch a.activo { background: var(--texto); color: #0a0a0a; }
+    .vista-switch a:not(.activo):hover { color: var(--texto); }
+    .reloj {
+      font-variant-numeric: tabular-nums; font-size: 12px; color: var(--dim);
+      min-width: 64px; text-align: right;
+    }
+
+    .shell {
+      flex: 1; min-height: 0; display: grid; position: relative;
+      grid-template-columns: 372px minmax(0, 1fr);
+    }
+    .scroll-hint {
+      position: absolute; left: 0; bottom: 0; width: 372px; height: 46px; z-index: 5;
+      display: flex; align-items: flex-end; justify-content: center; padding-bottom: 7px;
+      background: linear-gradient(to top, var(--bg) 38%, rgba(8,8,8,.92) 58%, rgba(8,8,8,0));
+      color: #c8c8c8; font-size: 10.5px; font-weight: 500; letter-spacing: .6px;
+      text-transform: uppercase; cursor: pointer; pointer-events: auto;
+      transition: opacity .2s ease;
+    }
+    .scroll-hint:hover { color: #ffffff; }
+    .scroll-hint.hint-off { opacity: 0; pointer-events: none; }
+
+    .sidebar {
+      min-height: 0; overflow-y: auto; background: var(--bg);
+      border-right: 1px solid var(--linea); padding: 20px 28px 58px;
+      display: flex; flex-direction: column;
+      scrollbar-width: thin; scrollbar-color: #666666 #111111;
+      scrollbar-gutter: stable;
+    }
+    .sidebar::-webkit-scrollbar { width: 11px; }
+    .sidebar::-webkit-scrollbar-track { background: #111111; }
+    .sidebar::-webkit-scrollbar-thumb { background: #555555; border-radius: 8px; border: 2px solid var(--bg); }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+
+    .ubicacion {
+      display: flex; align-items: center; gap: 8px; font-size: 15px;
+      color: var(--texto); margin-bottom: 26px; letter-spacing: .1px;
+    }
+    .ubicacion .chev { color: var(--dim-2); font-size: 11px; }
+    .ubicacion .dim { color: var(--dim-2); font-size: 12px; }
+
+    .hero { display: flex; align-items: flex-start; gap: 14px; min-height: 70px; }
+    .hero-label {
+      font-size: 10.5px; letter-spacing: 1.3px; text-transform: uppercase;
+      color: var(--dim-2); margin-bottom: 4px;
+    }
+    .hero-valor {
+      font-size: 76px; font-weight: 300; line-height: .9; letter-spacing: -4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px;
+      border-radius: 8px; background: var(--panel-2); color: var(--dim);
+      font-size: 11px; white-space: nowrap; margin-top: 12px;
+      border: 1px solid transparent;
+    }
+    .status-pill .dot, .mini-status .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .status-pill.ok { color: var(--acento); border-color: rgba(214,242,74,.22); background: rgba(214,242,74,.07); }
+    .status-pill.warn { color: var(--ambar); border-color: rgba(255,184,77,.22); background: rgba(255,184,77,.07); }
+    .status-pill.bad { color: var(--rojo); border-color: rgba(255,107,107,.22); background: rgba(255,107,107,.07); }
+    .hero-meta {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      color: var(--dim-2); font-size: 11px; margin-top: 12px;
+    }
+    .hero-meta b { color: var(--dim); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .hero-meta .sep { color: #333; }
+
+    .seccion { border-top: 1px solid var(--linea); padding-top: 14px; margin-top: 14px; }
+    .seccion-cab { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .seccion-cab h2 { font-size: 13.5px; font-weight: 500; margin: 0; letter-spacing: .1px; }
+    .info {
+      width: 15px; height: 15px; border: 1px solid var(--dim-2); border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 9px; color: var(--dim-2); font-style: normal; line-height: 1;
+      cursor: help; flex: none;
+    }
+    .link {
+      margin-left: auto; border: 0; background: none; color: var(--dim-2);
+      font-size: 11px; cursor: pointer; padding: 0;
+    }
+    .link:hover { color: var(--texto); }
+
+    .gauges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .gauge-col { min-width: 0; padding: 0 10px; border-left: 1px solid var(--linea-suave); }
+    .gauge-col:first-child { padding-left: 0; border-left: 0; }
+    .gauge-col:last-child { padding-right: 0; }
+    .gauge-label {
+      font-size: 12px; color: var(--dim); margin-bottom: 7px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .gauge-dot { width: 5px; height: 5px; border-radius: 50%; flex: none; }
+    .mini-status {
+      display: inline-flex; align-items: center; gap: 5px; font-size: 10px;
+      color: var(--dim-2); text-transform: uppercase; letter-spacing: .4px;
+      white-space: nowrap;
+    }
+    .mini-status.ok { color: var(--verde); }
+    .mini-status.warn { color: var(--ambar); }
+    .mini-status.bad { color: var(--rojo); }
+    .gauge { width: 100%; max-width: 64px; margin: 8px auto 4px; aspect-ratio: 1; }
+    .gauge svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    .gauge-valor {
+      font-size: 26px; font-weight: 300; line-height: 1; letter-spacing: -1px;
+      display: flex; align-items: baseline; justify-content: center; gap: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+    .gauge-max {
+      font-size: 10px; color: #7a7a7a; letter-spacing: .3px;
+    }
+
+    .capas { display: grid; grid-template-columns: 1fr 1fr; column-gap: 16px; }
+    .capa {
+      display: flex; align-items: center; gap: 7px; padding: 6px 0;
+      border-bottom: 1px solid var(--linea-suave); font-size: 11.5px;
+      color: var(--dim); min-width: 0; cursor: pointer;
+    }
+    .capa:hover .nombre { color: var(--texto); }
+    .capa:nth-last-child(-n+2) { border-bottom: none; }
+    .capa input { display: none; }
+    .capa .punto-color { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+    .capa .nombre {
+      color: var(--dim); transition: color .15s ease; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .capa .cuenta {
+      margin-left: auto; color: var(--dim-2); font-size: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    .capa .switch {
+      width: 28px; height: 16px; border-radius: 999px; background: #2a2a2a;
+      border: 1px solid #3a3a3a; position: relative; flex: none;
+      transition: background .16s ease, border-color .16s ease;
+    }
+    .capa .switch::after {
+      content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px;
+      border-radius: 50%; background: #8a8a8a; transition: transform .16s ease, background .16s ease;
+    }
+    .capa input:checked + .switch { background: #3a3a3a; border-color: #555; }
+    .capa input:checked + .switch::after { transform: translateX(12px); background: var(--texto); }
+    .capa.simple { border-bottom: none; padding: 8px 0 2px; }
+    .capa.simple .switch { margin-left: auto; }
+
+    .seg {
+      display: flex; gap: 2px; padding: 3px; border: 1px solid var(--linea);
+      border-radius: 10px; background: var(--panel); width: fit-content;
+    }
+    .seg.full { width: 100%; margin-bottom: 10px; }
+    .seg.full button { flex: 1; }
+    .seg button {
+      border: 0; background: transparent; color: var(--dim); padding: 7px 12px;
+      border-radius: 7px; font-size: 11.5px; font-weight: 500; cursor: pointer;
+      white-space: nowrap; transition: background .15s ease, color .15s ease;
+    }
+    .seg button:hover { color: var(--texto); }
+    .seg button.activo { background: var(--texto); color: #0a0a0a; }
+
+    .fila { display: flex; gap: 10px; }
+    .fila > * { flex: 1; min-width: 0; }
+    .campo { margin-bottom: 7px; }
+    .campo label {
+      display: block; font-size: 9px; color: var(--dim-2); text-transform: uppercase;
+      letter-spacing: .6px; margin-bottom: 2px; white-space: nowrap;
+    }
+    .campo input {
+      width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--linea);
+      color: var(--texto); padding: 6px 0; font-size: 12px; font-variant-numeric: tabular-nums;
+      border-radius: 0;
+    }
+    .campo input::placeholder { color: #3d3d3d; }
+    .campo input:focus { outline: none; border-bottom-color: var(--acento); }
+    .select-mini {
+      width: 100%; background: var(--panel-2); border: 1px solid var(--linea);
+      color: var(--texto); border-radius: 8px; padding: 7px 9px; font-size: 11.5px;
+      cursor: pointer;
+    }
+    .select-mini:focus { outline: none; border-color: var(--acento); }
+
+    .rango-cab {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 9.5px; color: var(--dim-2); margin: 0 0 2px;
+      text-transform: uppercase; letter-spacing: .5px;
+    }
+    .rango-cab b { color: var(--dim); font-weight: 500; letter-spacing: 0; }
+    input[type="range"] { width: 100%; accent-color: var(--acento); margin: 0 0 4px; }
+
+    .btn {
+      border: 1px solid var(--linea); background: var(--panel-2); color: var(--texto);
+      border-radius: 9px; padding: 10px 14px; font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn:hover { background: var(--panel-3); }
+    .btn.primario { background: var(--texto); border-color: transparent; color: #0a0a0a; }
+    .btn.primario:hover { background: #ffffff; }
+    .btn.ghost { background: transparent; color: var(--dim); }
+    .btn.ghost:hover { color: var(--texto); border-color: #333; }
+    .btn.activo { border-color: var(--acento); color: var(--acento); background: rgba(214,242,74,.07); }
+    .btn.ancho { width: 100%; }
+    .botones-ruta { margin-top: 10px; }
+    .auto-check {
+      display: flex; align-items: center; gap: 5px; margin-top: 6px;
+      font-size: 10px; color: var(--dim-2); cursor: pointer; white-space: nowrap;
+    }
+    .auto-check input { accent-color: var(--acento); width: 13px; height: 13px; margin: 0; }
+
+    .resultado {
+      font-size: 11px; color: var(--dim-2); line-height: 1.4;
+      margin-top: 7px; min-height: 20px;
+    }
+    .resultado b { color: var(--texto); font-weight: 500; }
+    .resultado .err { color: var(--rojo); }
+
+    .bitacora {
+      position: absolute; z-index: 610; right: 14px; bottom: 82px;
+      width: 300px; max-height: 260px; display: flex; flex-direction: column;
+      background: rgba(14,14,14,.94); border: 1px solid var(--linea);
+      border-radius: 12px; padding: 12px 14px; backdrop-filter: blur(10px);
+      box-shadow: 0 18px 44px rgba(0,0,0,.5);
+    }
+    .bitacora-cab {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px; color: var(--dim); margin-bottom: 8px;
+    }
+    .bitacora-cab button {
+      border: 0; background: none; color: var(--dim-2); font-size: 16px;
+      line-height: 1; cursor: pointer; padding: 0 2px;
+    }
+    .bitacora-cab button:hover { color: var(--texto); }
+    #log { display: flex; flex-direction: column; max-height: 205px; overflow-y: auto; }
+    #log::-webkit-scrollbar { width: 6px; }
+    #log::-webkit-scrollbar-thumb { background: #2b2b2b; border-radius: 6px; }
+    #log .ev {
+      font-size: 11.5px; line-height: 1.4; padding: 9px 0; color: var(--dim);
+      border-bottom: 1px solid var(--linea-suave);
+    }
+    #log .ev:last-child { border-bottom: none; }
+    #log .ev b { color: var(--texto); font-weight: 500; }
+    #log .ev time {
+      display: block; color: var(--dim-2); font-size: 9.5px; margin-top: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+    #log .ev.bloqueo b { color: var(--rojo); }
+    #log .ev.riesgo b { color: var(--ambar); }
+    #log .ev.zona b { color: var(--verde); }
+
+    .pie-sidebar { margin-top: auto; padding-top: 22px; }
+    .nodo {
+      border: 1px solid var(--linea); border-radius: var(--radio); background: var(--panel);
+      padding: 13px 14px; margin-bottom: 10px;
+    }
+    .nodo-cab { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .banner {
+      background: rgba(214,242,74,.12); color: var(--acento); font-weight: 700;
+      font-size: 9px; letter-spacing: 1.2px; padding: 4px 8px; border-radius: 5px;
+      text-transform: uppercase; white-space: nowrap; border: 1px solid rgba(214,242,74,.2);
+    }
+    .banner.warn { background: rgba(255,184,77,.12); color: var(--ambar); border-color: rgba(255,184,77,.22); }
+    .banner.bad { background: rgba(255,107,107,.12); color: var(--rojo); border-color: rgba(255,107,107,.22); }
+    .banner-txt { font-size: 10.5px; color: var(--dim-2); line-height: 1.4; flex: 1; min-width: 120px; }
+    .sistema { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+    .mini-pill {
+      display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px;
+      border: 1px solid var(--linea-suave); border-radius: 999px;
+      font-size: 9.5px; color: var(--dim-2); text-transform: uppercase; letter-spacing: .4px;
+    }
+    .mini-pill b { color: var(--dim); font-weight: 500; text-transform: none; letter-spacing: 0; }
+    .led { width: 5px; height: 5px; border-radius: 50%; background: var(--dim-2); flex: none; }
+    .led.ok { background: var(--verde); }
+    .led.warn { background: var(--ambar); }
+    .led.bad { background: var(--rojo); }
+    .pie-sidebar .btn.ancho { margin-top: 2px; }
+
+    .contenido { min-height: 0; padding: 18px 22px 22px; display: flex; overflow: hidden; }
+    .mapa-card {
+      flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column;
+      border: 1px solid var(--linea); border-radius: 16px; overflow: hidden;
+      background: #070707;
+    }
+    .mapa-toolbar {
+      flex: none; display: flex; align-items: center; gap: 14px;
+      padding: 12px 16px; border-bottom: 1px solid var(--linea); background: var(--panel);
+    }
+    .timeline {
+      flex: 1; min-width: 120px; display: flex; align-items: flex-end;
+      justify-content: space-between; gap: 4px; height: 40px; overflow: hidden;
+    }
+    .tl-item {
+      display: flex; flex-direction: column; align-items: center; gap: 7px;
+      font-size: 10px; letter-spacing: .8px; color: #8f8f8f;
+      font-variant-numeric: tabular-nums; flex: 1; min-width: 0;
+    }
+    .tl-item i { width: 1px; height: 7px; background: #3c3c3c; display: block; }
+    .tl-item.activo { color: var(--texto); }
+    .tl-item.activo i { background: var(--acento); height: 11px; }
+    .btn-icon, .btn-hoy {
+      flex: none; border: 1px solid var(--linea); background: var(--panel-2);
+      color: var(--dim); border-radius: 9px; cursor: pointer; height: 36px;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: background .15s ease, color .15s ease;
+    }
+    .btn-icon { width: 38px; font-size: 16px; line-height: 1; }
+    .btn-hoy { padding: 0 14px; font-size: 11.5px; }
+    .btn-icon:hover, .btn-hoy:hover { background: var(--panel-3); color: var(--texto); }
+    .btn-hoy.activo { color: var(--acento); border-color: rgba(214,242,74,.3); background: rgba(214,242,74,.07); }
+
+    .mapa-lienzo { position: relative; flex: 1; min-height: 0; background: #070707; }
+    #mapa { position: absolute; inset: 0; z-index: 0; }
+    .mapa-lienzo::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+      background: radial-gradient(circle at 50% 45%, rgba(7,7,7,0) 42%, rgba(7,7,7,.72) 100%);
+    }
+    .leaflet-container { background: #070707; font-family: inherit; }
+    .teselas-oscuras .leaflet-tile {
+      filter: grayscale(1) invert(1) brightness(.95) contrast(1);
+      opacity: .94;
+    }
+
+    .hud { position: absolute; z-index: 600; display: flex; gap: 8px; align-items: center; pointer-events: none; }
+    .hud > * { pointer-events: auto; }
+    .hud-sup-izq { top: 14px; left: 14px; }
+    .hud-sup-der { top: 14px; right: 14px; }
+    .hud-inf-der { bottom: 46px; right: 14px; }
+    .hud-chip {
+      background: rgba(12,12,12,.84); border: 1px solid var(--linea);
+      backdrop-filter: blur(8px); border-radius: 999px; padding: 6px 11px;
+      font-size: 10.5px; color: var(--dim); display: inline-flex; align-items: center; gap: 7px;
+      max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .hud-chip b { color: var(--texto); font-weight: 500; }
+    .hud-chip.mono { font-variant-numeric: tabular-nums; }
+
+    .mapa-paneles {
+      position: absolute; z-index: 600; left: 14px; bottom: 14px;
+      display: flex; align-items: stretch; gap: 10px; pointer-events: none;
+    }
+    .mapa-paneles > * { pointer-events: auto; }
+    .panel-mapa {
+      background: rgba(14,14,14,.9); border: 1px solid var(--linea);
+      border-radius: 11px; padding: 12px 15px; backdrop-filter: blur(10px);
+      min-height: 76px; display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .panel-kicker { font-size: 10.5px; color: var(--dim-2); margin-bottom: 9px; letter-spacing: .3px; }
+    .panel-opts { display: flex; align-items: center; gap: 9px; }
+    .opt {
+      border: 0; background: transparent; color: var(--dim); padding: 4px 8px;
+      border-radius: 5px; font-size: 11px; cursor: pointer; white-space: nowrap;
+      transition: background .15s ease, color .15s ease;
+    }
+    .opt:hover { color: var(--texto); }
+    .opt.activo { background: var(--texto); color: #0a0a0a; }
+    .leyenda-riesgo { display: flex; align-items: center; gap: 12px; font-size: 10.5px; color: var(--dim); }
+    .leyenda-riesgo span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .leyenda-riesgo i { width: 5px; height: 5px; border-radius: 50%; display: block; }
+    .leyenda-marcadores {
+      display: flex; align-items: center; gap: 12px; margin-top: 8px; padding-top: 8px;
+      border-top: 1px solid var(--linea-suave); font-size: 10px; color: var(--dim);
+    }
+    .leyenda-marcadores span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .glyph { width: 7px; height: 7px; border-radius: 50%; display: block; }
+    .glyph.rescate { background: var(--texto); box-shadow: 0 0 0 2px rgba(214,242,74,.3); }
+    .glyph.bloqueo { background: var(--rojo); }
+    .glyph.riesgo { background: var(--ambar); border-radius: 2px; }
+
+    .zoom-rail {
+      position: absolute; z-index: 600; right: 20px; top: 50%; transform: translateY(-50%);
+      display: flex; flex-direction: column; align-items: flex-end; gap: 0;
+      padding: 9px 11px 9px 9px; border-radius: 10px;
+      background: rgba(9,9,9,.72); border: 1px solid rgba(255,255,255,.06);
+      backdrop-filter: blur(8px);
+    }
+    .zoom-rail::before {
+      content: ""; position: absolute; right: 6px; top: 14px; bottom: 14px;
+      width: 1px; background: #303030;
+    }
+    .zoom-rail button {
+      position: relative; border: 0; background: none; color: #8a8a8a;
+      font-size: 10.5px; cursor: pointer; padding: 0 10px 0 0; line-height: 1;
+      height: 26px; display: flex; align-items: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .zoom-rail button::after {
+      content: ""; position: absolute; right: -1px; top: 50%; width: 7px; height: 1px;
+      background: #4a4a4a; transition: width .15s ease, background .15s ease;
+    }
+    .zoom-rail button:hover { color: var(--texto); }
+    .zoom-rail button.activo { color: var(--texto); }
+    .zoom-rail button.activo::after { width: 13px; background: var(--acento); }
+
+    .marcador-rescate {
+      width: 26px; height: 26px; border-radius: 50%; background: var(--texto);
+      border: 2px solid #080808; color: #0a0a0a; display: flex; align-items: center;
+      justify-content: center; font-size: 9.5px; font-weight: 700;
+      box-shadow: 0 0 0 3px rgba(214,242,74,.30);
+    }
+    .marcador-bloqueo {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--rojo);
+      border: 2px solid #080808; display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 0 4px rgba(255,107,107,.20);
+    }
+    .marcador-bloqueo::after { content: ""; width: 11px; height: 2px; border-radius: 2px; background: #fff; }
+    .marcador-riesgo {
+      width: 22px; height: 22px; border-radius: 6px; background: var(--ambar);
+      border: 2px solid #080808; display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800; color: #0a0a0a; line-height: 1;
+      box-shadow: 0 0 0 4px rgba(255,184,77,.18);
+    }
+    .marcador-centro {
+      width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--acento);
+      position: relative; box-shadow: 0 0 0 6px rgba(214,242,74,.08);
+    }
+    .marcador-centro::after {
+      content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--acento);
+    }
+    .marcador-punto {
+      width: 17px; height: 17px; border-radius: 50%; background: #080808;
+      border: 2px solid var(--acento); box-shadow: 0 0 0 5px rgba(214,242,74,.12);
+    }
+    .marcador-punto.destino { border-color: var(--texto); box-shadow: 0 0 0 5px rgba(255,255,255,.10); }
+
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+      background: var(--panel-2); color: var(--texto); border: 1px solid var(--linea);
+      box-shadow: 0 18px 44px rgba(0,0,0,.62);
+    }
+    .leaflet-popup-content { margin: 13px 15px; font-size: 12px; line-height: 1.5; }
+    .leaflet-popup-content b { color: var(--dim); font-weight: 500; }
+    .leaflet-container a.leaflet-popup-close-button { color: var(--dim); }
+    .mapa-lienzo .leaflet-bottom { bottom: 8px; }
+    .mapa-lienzo .leaflet-right { right: 8px; }
+    .leaflet-control-attribution {
+      background: rgba(7,7,7,.78) !important; color: var(--dim-2) !important;
+      font-size: 9px !important; border-radius: 4px; padding: 2px 5px !important;
+    }
+    .leaflet-control-attribution a { color: var(--dim) !important; }
+    .leaflet-control-scale-line {
+      background: rgba(7,7,7,.72) !important; border-color: #3a3a3a !important;
+      color: var(--dim-2) !important; font-size: 9px !important;
+    }
+
+    @media (max-width: 1280px) {
+      .shell { grid-template-columns: 340px minmax(0, 1fr); }
+      .sidebar { padding-left: 24px; padding-right: 24px; }
+      .scroll-hint { width: 340px; }
+      .timeline { display: none; }
+      .leyenda-riesgo { display: none; }
+      .topbar-status .banner-txt { display: none; }
+    }
+    @media (max-width: 900px) {
+      .topbar { height: 64px; padding: 0 18px; }
+      .brand-name { font-size: 21px; }
+      .topbar-status .sistema { display: none; }
+      .mapa-toolbar .banner-txt { display: none; }
+      .scroll-hint { display: none; }
+      .shell { grid-template-columns: 1fr; grid-template-rows: minmax(0, 43vh) minmax(0, 1fr); }
+      .sidebar {
+        border-right: 0; border-bottom: 1px solid var(--linea);
+        padding: 18px 20px 22px;
+      }
+      .contenido { padding: 12px; }
+      .mapa-toolbar { gap: 8px; padding: 10px 12px; }
+      .mapa-paneles .panel-mapa:last-child { display: none; }
+      .hud-sup-der { display: none; }
+      .hud-inf-der { display: none; }
+      .hero-valor { font-size: 72px; }
+    }
+    @media (max-width: 560px) {
+      .seg button { padding: 6px 8px; font-size: 10.5px; }
+      .reloj { display: none; }
+      .brand-sub { display: none; }
+      .topbar-status { display: none; }
+      .mapa-paneles { left: 10px; bottom: 10px; }
+      .zoom-rail { right: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="/control/" aria-label="NODOMX Estación de Control">
+        <span class="logo" aria-hidden="true"></span>
+        <span class="brand-name">NODOMX</span>
+        <span class="brand-sub">CONTROL</span>
+      </a>
+      <div class="topbar-status">
+        <span class="banner" id="banner">EN VIVO</span>
+        <span class="banner-txt" id="banner-txt">Nodo mesh conectado · datos en tiempo real</span>
+      </div>
+      <div class="top-right">
+        <nav class="vista-switch" aria-label="Cambiar de vista">
+          <a href="/control/" class="activo" aria-current="page">Control</a>
+          <a href="/cliente/">Campo</a>
+        </nav>
+        <span class="reloj" id="txt-reloj">--:--:--</span>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="ubicacion">
+          <span id="ubicacion-nombre">Puebla</span>
+          <span class="chev">⌄</span>
+          <span class="dim" id="ubicacion-region">Pue, MX</span>
+        </div>
+
+        <div class="hero">
+          <div>
+            <div class="hero-label">Alertas activas</div>
+            <div class="hero-valor" id="hero-alertas">0</div>
+          </div>
+          <span class="status-pill ok" id="hero-pill">
+            <span class="dot"></span><span id="hero-pill-txt">Sin alertas</span>
+          </span>
+        </div>
+        <div class="hero-meta">
+          <span>Actualizado <b id="hero-hora">—</b></span>
+          <span class="sep">·</span>
+          <span><b id="m-rescatistas">0</b> unidades GNSS</span>
+        </div>
+
+        <section class="seccion">
+          <div class="seccion-cab">
+            <h2>Capas tácticas</h2>
+            <span class="info" title="Capas visibles en el mapa táctico">i</span>
+          </div>
+          <div class="capas">
+            <label class="capa" title="Bloqueos viales">
+              <span class="punto-color" style="background:var(--rojo)"></span>
+              <span class="nombre">Bloqueos</span>
+              <span class="cuenta" id="n-bloqueos">0</span>
+              <input type="checkbox" id="chk-bloqueos" checked />
+              <span class="switch"></span>
+            </label>
+            <label class="capa" title="Riesgos activos">
+              <span class="punto-color" style="background:var(--ambar)"></span>
+              <span class="nombre">Riesgos</span>
+              <span class="cuenta" id="n-riesgos">0</span>
+              <input type="checkbox" id="chk-riesgos" checked />
+              <span class="switch"></span>
+            </label>
+            <label class="capa" title="Zonas peinadas">
+              <span class="punto-color" style="background:var(--verde)"></span>
+              <span class="nombre">Zonas</span>
+              <span class="cuenta" id="n-zonas">0</span>
+              <input type="checkbox" id="chk-zonas" checked />
+              <span class="switch"></span>
+            </label>
+            <label class="capa" title="Rescatistas y vehículos">
+              <span class="punto-color" style="background:var(--texto)"></span>
+              <span class="nombre">Unidades</span>
+              <span class="cuenta" id="n-posiciones">0</span>
+              <input type="checkbox" id="chk-posiciones" checked />
+              <span class="switch"></span>
+            </label>
+          </div>
+
+          <div class="campo" style="margin-top:12px">
+            <label for="sel-ventana">Ventana de posiciones</label>
+            <select id="sel-ventana" class="select-mini">
+              <option value="60">Último minuto</option>
+              <option value="300" selected>Últimos 5 minutos</option>
+              <option value="900">Últimos 15 minutos</option>
+              <option value="0">Todo el histórico</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="seccion" id="seccion-ruteo">
+          <div class="seccion-cab">
+            <h2>Ruteo</h2>
+            <span class="info" title="Dijkstra sobre el grafo vial, esquivando bloqueos activos">i</span>
+          </div>
+
+          <div class="seg full" role="group" aria-label="Seleccionar punto en el mapa">
+            <button id="btn-modo-origen">Origen</button>
+            <button id="btn-modo-destino">Destino</button>
+          </div>
+
+          <div class="fila">
+            <div class="campo"><label>Origen lat</label><input type="text" inputmode="decimal" id="in-o-lat" placeholder="—" /></div>
+            <div class="campo"><label>Origen lon</label><input type="text" inputmode="decimal" id="in-o-lon" placeholder="—" /></div>
+            <div class="campo"><label>Destino lat</label><input type="text" inputmode="decimal" id="in-d-lat" placeholder="—" /></div>
+            <div class="campo"><label>Destino lon</label><input type="text" inputmode="decimal" id="in-d-lon" placeholder="—" /></div>
+          </div>
+
+          <label class="auto-check">
+            <input type="checkbox" id="chk-autorruta" checked />
+            <span>Auto-recalcular al bloquear</span>
+          </label>
+
+          <div class="rango-cab" style="margin-top:10px">
+            <span>Velocidad</span>
+            <b><span id="txt-velocidad">30</span> km/h</b>
+          </div>
+          <input type="range" id="in-velocidad" min="10" max="80" step="5" value="30" />
+
+          <div class="fila botones-ruta">
+            <button class="btn primario" id="btn-ruta">Calcular ruta</button>
+            <button class="btn ghost" id="btn-limpiar-ruta" style="flex:0 0 84px">Limpiar</button>
+          </div>
+          <div class="resultado" id="resultado-ruta">Define origen y destino, o usa un rescatista del mapa.</div>
+        </section>
+
+        <div class="pie-sidebar">
+          <div class="nodo">
+            <div class="nodo-cab">
+              <span style="font-size:11.5px;color:var(--dim)">Estado del nodo</span>
+              <span class="mini-status ok" id="nodo-estado">
+                <span class="dot"></span> local
+              </span>
+            </div>
+            <div class="sistema">
+              <span class="mini-pill">
+                <span id="led-grafo" class="led ok"></span> Grafo
+                <b id="txt-grafo">—</b>
+              </span>
+              <span class="mini-pill">
+                <span id="led-api" class="led"></span> API
+                <b id="txt-api">—</b>
+              </span>
+              <span class="mini-pill">
+                <span id="led-ws" class="led"></span> En vivo
+                <b id="txt-ws">—</b>
+              </span>
+            </div>
+          </div>
+        </div>
+      </aside>
+      <div class="scroll-hint" id="scroll-hint" role="button" tabindex="0" aria-label="Ir al ruteo">Desliza para ver ruteo ↓</div>
+
+      <main class="contenido">
+        <section class="mapa-card">
+          <div class="mapa-toolbar">
+            <span style="font-size:11px;color:var(--dim)">Mapa táctico</span>
+            <span class="banner-txt" id="txt-fondo">fondo local offline</span>
+            <span style="flex:1"></span>
+            <button class="btn-hoy" id="btn-reset" title="Reiniciar vista">
+              ↺ Centrar
+            </button>
+            <button
+              class="btn-icon"
+              id="btn-log"
+              title="Bitácora en vivo"
+              aria-label="Bitácora en vivo"
+              aria-expanded="false"
+            >
+              ≡
+            </button>
+          </div>
+          <div class="mapa-lienzo">
+            <div id="mapa"></div>
+
+            <div class="hud hud-sup-izq">
+              <span class="hud-chip" id="chip-fondo"><span class="led warn"></span> Fondo táctico local</span>
+              <span class="hud-chip mono" id="chip-coords">Coordenadas —</span>
+            </div>
+            <div class="hud hud-sup-der">
+              <span class="hud-chip" id="chip-aviso">Selecciona Origen o Destino y haz clic en el mapa</span>
+            </div>
+            <div class="hud hud-inf-der">
+              <span class="hud-chip" id="chip-centro">Centro —</span>
+            </div>
+
+            <div class="mapa-paneles">
+              <div class="panel-mapa">
+                <div class="panel-kicker">Modo</div>
+                <div class="panel-opts" id="presets">
+                  <button class="opt activo" data-preset="tactico">Táctico</button>
+                  <button class="opt" data-preset="rescate">Rescate</button>
+                  <button class="opt" data-preset="ruta">Ruta</button>
+                </div>
+              </div>
+              <div class="panel-mapa">
+                <div class="panel-kicker">Índice de riesgo</div>
+                <div class="leyenda-riesgo">
+                  <span><i style="background:var(--rojo)"></i>Crítico</span>
+                  <span><i style="background:var(--ambar)"></i>Alto</span>
+                  <span><i style="background:var(--dim)"></i>Medio</span>
+                  <span><i style="background:var(--dim-2)"></i>Bajo</span>
+                </div>
+                <div class="leyenda-marcadores">
+                  <span><i class="glyph rescate"></i>Unidad</span>
+                  <span><i class="glyph bloqueo"></i>Bloqueo</span>
+                  <span><i class="glyph riesgo"></i>Riesgo</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="zoom-rail" id="zoom-rail" aria-label="Nivel de zoom">
+              <button data-zoom="18">4×</button>
+              <button data-zoom="17">3×</button>
+              <button data-zoom="16">2×</button>
+              <button data-zoom="15" class="activo">1×</button>
+              <button data-zoom="14">0.5×</button>
+            </div>
+
+            <div class="bitacora oculto" id="bitacora">
+              <div class="bitacora-cab">
+                <span>Bitácora en vivo</span>
+                <button type="button" id="btn-cerrar-log" aria-label="Cerrar bitácora">×</button>
+              </div>
+              <div id="log"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="/control/vendor/leaflet.js"></script>
+  <script src="/control/dashboard.js"></script>
+</body>
+</html>
