@@ -8,6 +8,7 @@
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/cliente/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/cliente/icon.svg" />
+  <link rel="stylesheet" href="/cliente/vendor/leaflet.css" />
   <style>
     :root {
       --bg: #0a0e14;
@@ -108,6 +109,7 @@
     dialog {
       border: 1px solid var(--borde); background: var(--panel); color: var(--texto);
       border-radius: 16px; padding: 18px; width: min(460px, calc(100vw - 32px));
+      max-height: calc(100vh - 32px); overflow-y: auto;
     }
     dialog::backdrop { background: rgba(0,0,0,.65); }
     dialog h3 { margin: 0 0 14px; font-size: 16px; }
@@ -141,6 +143,62 @@
     ul.pendientes li:last-child { border-bottom: none; }
     ul.pendientes .vacio { color: var(--texto-dim); }
     .hint { font-size: 12px; color: var(--texto-dim); line-height: 1.5; }
+
+    /* Selector de punto en el mapa (reporte de bloqueo) */
+    #mapa-bloqueo {
+      height: 210px; margin-top: 4px; border: 1px solid var(--borde);
+      border-radius: 12px; overflow: hidden; background: #0a111c; z-index: 0;
+    }
+    #mapa-bloqueo .mapa-fallback {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; padding: 16px; text-align: center;
+      color: var(--texto-dim); font-size: 12.5px; line-height: 1.5;
+    }
+    .mapa-pie {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 10px; margin-top: 8px;
+    }
+    .mapa-pie .hint { flex: 1; margin: 0; }
+    .mapa-pie button {
+      border: 1px solid var(--borde); background: var(--panel-2); color: var(--texto);
+      border-radius: 9px; padding: 8px 10px; font-size: 12px; font-weight: 600;
+      white-space: nowrap; cursor: pointer;
+    }
+    .mapa-pie button:active { transform: scale(.97); }
+    #txt-punto-bloqueo b { color: var(--azul); font-variant-numeric: tabular-nums; }
+    .pin-bloqueo { background: transparent; }
+    .pin-bloqueo span {
+      display: block; width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(255,59,59,.22); border: 2px solid var(--rojo);
+      box-shadow: 0 0 12px var(--rojo);
+    }
+    .gps-campo { background: transparent; }
+    .gps-campo span {
+      display: block; width: 14px; height: 14px; border-radius: 50%;
+      background: var(--azul); border: 2px solid #fff;
+      box-shadow: 0 0 8px var(--azul);
+    }
+    .leaflet-container {
+      background-color: #0a111c;
+      background-image:
+        linear-gradient(rgba(84,116,148,.16) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(84,116,148,.16) 1px, transparent 1px);
+      background-size: 32px 32px;
+      font-family: inherit;
+    }
+    .teselas-oscuras .leaflet-tile {
+      filter: invert(1) hue-rotate(180deg) brightness(.82) contrast(.9) saturate(.75);
+    }
+    .leaflet-control-attribution {
+      background: rgba(10,17,28,.8) !important; color: var(--texto-dim) !important;
+      font-size: 9px !important;
+    }
+    .leaflet-control-attribution a { color: var(--texto-dim) !important; }
+    .leaflet-bar a {
+      background: var(--panel-2) !important; color: var(--texto) !important;
+      border-bottom-color: var(--borde) !important;
+    }
+    .leaflet-bar a:hover { background: #26313f !important; }
   </style>
 </head>
 <body>
@@ -204,6 +262,14 @@
   <dialog id="dlg-bloqueo">
     <h3>⛔ Bloqueo vial</h3>
     <form method="dialog">
+      <label>Ubicación del bloqueo</label>
+      <div id="mapa-bloqueo" aria-label="Mapa para seleccionar el punto del bloqueo"></div>
+      <div class="mapa-pie">
+        <p class="hint" id="txt-punto-bloqueo">
+          Toca el mapa para fijar el punto del bloqueo.
+        </p>
+        <button type="button" id="btn-gps-bloqueo">📍 Mi GPS</button>
+      </div>
       <label for="obstaculo">Tipo de obstáculo</label>
       <select id="obstaculo">
         <option value="ESCOMBROS">Escombros</option>
@@ -250,6 +316,7 @@
   </dialog>
 
   <div id="toast"></div>
+  <script src="/cliente/vendor/leaflet.js"></script>
   <script src="/cliente/app.js"></script>
 </body>
 </html>

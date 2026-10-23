@@ -5,13 +5,21 @@
  */
 'use strict';
 
-const CACHE = 'meshresq-shell-v1';
+const CACHE = 'meshresq-shell-v2';
 const SHELL = [
   '/cliente/',
   '/cliente/index.html',
   '/cliente/app.js',
   '/cliente/icon.svg',
   '/manifest.json',
+  // Leaflet local: el selector de punto del bloqueo debe funcionar offline.
+  '/cliente/vendor/leaflet.js',
+  '/cliente/vendor/leaflet.css',
+  '/cliente/vendor/images/layers.png',
+  '/cliente/vendor/images/layers-2x.png',
+  '/cliente/vendor/images/marker-icon.png',
+  '/cliente/vendor/images/marker-icon-2x.png',
+  '/cliente/vendor/images/marker-shadow.png',
 ];
 
 self.addEventListener('install', (event) => {

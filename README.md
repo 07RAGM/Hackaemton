@@ -28,7 +28,8 @@ Implementado a partir de `instrucciones_de_desarrollo.md`.
 
 1. **Cliente de Campo (PWA)** — `app/static/cliente/`
    Captura GNSS continua (`watchPosition`, alta precisión), formulario rápido de
-   bloqueos/riesgos/zonas peinadas, cola offline en **IndexedDB** y
+   bloqueos/riesgos/zonas peinadas, **selector del punto exacto del bloqueo
+   sobre un mini-mapa Leaflet** (o GPS actual), cola offline en **IndexedDB** y
    sincronización automática por *heartbeat*.
 
 2. **Estación de Control (Dashboard táctico)** — `app/static/control/`

@@ -180,3 +180,11 @@ def test_estaticos(cliente):
     assert cliente.get("/cliente/").status_code == 200
     assert cliente.get("/manifest.json").status_code == 200
     assert cliente.get("/sw.js").status_code == 200
+
+    # El cliente de campo incluye el selector de punto para bloqueos.
+    html = cliente.get("/cliente/").text
+    assert 'id="mapa-bloqueo"' in html
+    assert "/cliente/vendor/leaflet.js" in html
+    assert cliente.get("/cliente/vendor/leaflet.js").status_code == 200
+    assert cliente.get("/cliente/vendor/leaflet.css").status_code == 200
+    assert "/cliente/vendor/leaflet.js" in cliente.get("/sw.js").text

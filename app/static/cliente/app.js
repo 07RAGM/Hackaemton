@@ -17,6 +17,18 @@ const MAX_PUNTOS_POR_LOTE = 5;        // criterio de aceptación n.º 1
 const INTERVALO_LOTE_MS = 30000;
 const INTERVALO_HEARTBEAT_MS = 15000;
 
+// Configuración y estado del mini-mapa para reportar bloqueos.
+const CLAVE_CONFIG = 'meshresq.config';
+const CENTRO_POR_DEFECTO = { lat: 19.0433, lon: -98.1987 };
+let configMapa = {
+  centro: CENTRO_POR_DEFECTO,
+  tiles_url: 'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+  tiles_atribucion: '© OpenStreetMap contributors',
+};
+let mapaBloqueo = null;
+let marcadorBloqueo = null;
+let marcadorGps = null;
+
 // --------------------------------------------------------------------------
 // Estado en memoria
 // --------------------------------------------------------------------------
@@ -28,6 +40,7 @@ const estado = {
   recorrido: [],           // acumulador de puntos del polígono peinado
   enlace: false,           // heartbeat contra el nodo mesh
   sincronizando: false,
+  puntoBloqueo: null,      // punto elegido en el mapa para el bloqueo
 };
 
 const rescatistaId = (() => {
@@ -257,6 +270,7 @@ function iniciarGPS() {
       fijarLed('led-gps', 'ok');
       $('txt-gps').textContent = 'activo';
       actualizarUIposicion(pos);
+      actualizarMarcadorGps();
 
       const punto = envolverPunto(pos);
       estado.buffer.push(punto);
@@ -276,22 +290,250 @@ function iniciarGPS() {
 }
 
 // --------------------------------------------------------------------------
+// Selector de punto para bloqueos (mini-mapa Leaflet)
+// --------------------------------------------------------------------------
+function centroMapa() {
+  const c = configMapa.centro;
+  if (c && Number.isFinite(c.lat) && Number.isFinite(c.lon)) {
+    return { lat: c.lat, lon: c.lon };
+  }
+  return CENTRO_POR_DEFECTO;
+}
+
+function leerConfigGuardada() {
+  try {
+    const guardada = JSON.parse(localStorage.getItem(CLAVE_CONFIG) || 'null');
+    if (guardada && typeof guardada === 'object') {
+      configMapa = { ...configMapa, ...guardada };
+      configMapa.centro = centroMapa();
+    }
+  } catch (_) {
+    /* Configuración local corrupta: se usa el valor por defecto. */
+  }
+}
+
+async function cargarConfigMapa() {
+  leerConfigGuardada();
+  try {
+    const resp = await fetch(`${API}/api/config`, { signal: AbortSignal.timeout(4000) });
+    if (!resp.ok) return;
+    const cfg = await resp.json();
+    const centro = cfg.centro;
+    if (centro && Number.isFinite(centro.lat) && Number.isFinite(centro.lon)) {
+      configMapa.centro = { lat: centro.lat, lon: centro.lon };
+    }
+    configMapa.tiles_url = cfg.tiles_url || null;
+    configMapa.tiles_atribucion = cfg.tiles_atribucion || '';
+    configMapa.tiles_local = !!cfg.tiles_local;
+    configMapa.tiles_min_zoom = cfg.tiles_min_zoom;
+    configMapa.tiles_max_zoom = cfg.tiles_max_zoom;
+    configMapa.tiles_bounds = cfg.tiles_bounds;
+    configMapa.tiles_oscuras = !!cfg.tiles_oscuras;
+    try {
+      localStorage.setItem(
+        CLAVE_CONFIG,
+        JSON.stringify({
+          centro: configMapa.centro,
+          tiles_url: configMapa.tiles_url,
+          tiles_atribucion: configMapa.tiles_atribucion,
+          tiles_local: configMapa.tiles_local,
+          tiles_min_zoom: configMapa.tiles_min_zoom,
+          tiles_max_zoom: configMapa.tiles_max_zoom,
+          tiles_bounds: configMapa.tiles_bounds,
+          tiles_oscuras: configMapa.tiles_oscuras,
+        })
+      );
+    } catch (_) {
+      /* localStorage lleno o bloqueado. */
+    }
+  } catch (_) {
+    /* Sin nodo mesh: se usa la última configuración guardada. */
+  }
+}
+
+function iconoPinBloqueo() {
+  return L.divIcon({
+    className: 'pin-bloqueo',
+    html: '<span></span>',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+}
+
+function pintarPuntoBloqueo(origen = 'mapa') {
+  const p = estado.puntoBloqueo;
+  if (!p) {
+    $('txt-punto-bloqueo').textContent = 'Toca el mapa para fijar el punto del bloqueo.';
+    return;
+  }
+  const etiqueta = origen === 'GPS' ? 'GPS actual' : 'seleccionado en el mapa';
+  $('txt-punto-bloqueo').innerHTML =
+    `Punto <b>${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}</b><br>${etiqueta}`;
+}
+
+function fijarPuntoBloqueo(lat, lon, origen = 'mapa') {
+  estado.puntoBloqueo = {
+    lat,
+    lon,
+    origen,
+    timestamp: new Date().toISOString(),
+  };
+  if (!mapaBloqueo) return pintarPuntoBloqueo(origen);
+
+  if (!marcadorBloqueo) {
+    marcadorBloqueo = L.marker([lat, lon], {
+      icon: iconoPinBloqueo(),
+      draggable: true,
+      autoPan: true,
+      title: 'Punto del bloqueo',
+      zIndexOffset: 800,
+    }).addTo(mapaBloqueo);
+    marcadorBloqueo.on('dragend', () => {
+      const ll = marcadorBloqueo.getLatLng();
+      estado.puntoBloqueo = {
+        lat: ll.lat,
+        lon: ll.lng,
+        origen: 'mapa',
+        timestamp: new Date().toISOString(),
+      };
+      pintarPuntoBloqueo('mapa');
+    });
+  } else {
+    marcadorBloqueo.setLatLng([lat, lon]);
+  }
+  mapaBloqueo.panTo([lat, lon], { animate: false });
+  pintarPuntoBloqueo(origen);
+}
+
+function actualizarMarcadorGps() {
+  if (!mapaBloqueo || !estado.posicion) return;
+  const { latitude, longitude } = estado.posicion.coords;
+  if (!marcadorGps) {
+    marcadorGps = L.marker([latitude, longitude], {
+      icon: L.divIcon({
+        className: 'gps-campo',
+        html: '<span></span>',
+        iconSize: [14, 14],
+        iconAnchor: [7, 7],
+      }),
+      interactive: false,
+      zIndexOffset: 500,
+    }).addTo(mapaBloqueo);
+  } else {
+    marcadorGps.setLatLng([latitude, longitude]);
+  }
+}
+
+function crearMapaBloqueo() {
+  if (mapaBloqueo) return mapaBloqueo;
+
+  const contenedor = $('mapa-bloqueo');
+  if (typeof L === 'undefined') {
+    contenedor.innerHTML =
+      '<div class="mapa-fallback">Mapa no disponible. Usa «Mi GPS» para reportar tu posición actual.</div>';
+    return null;
+  }
+
+  const actual = puntoActual();
+  const centro = actual
+    ? [actual.lat, actual.lon]
+    : [centroMapa().lat, centroMapa().lon];
+
+  mapaBloqueo = L.map(contenedor, {
+    zoomControl: true,
+    attributionControl: true,
+    preferCanvas: true,
+  }).setView(centro, 16);
+
+  if (typeof configMapa.tiles_url === 'string' && configMapa.tiles_url) {
+    const opciones = {
+      maxZoom: 19,
+      attribution: configMapa.tiles_atribucion || '',
+    };
+    if (configMapa.tiles_min_zoom) {
+      opciones.minNativeZoom = configMapa.tiles_min_zoom;
+    }
+    if (configMapa.tiles_max_zoom) {
+      opciones.maxNativeZoom = configMapa.tiles_max_zoom;
+    }
+    if (
+      Array.isArray(configMapa.tiles_bounds) &&
+      configMapa.tiles_bounds.length === 4
+    ) {
+      const [sur, oeste, norte, este] = configMapa.tiles_bounds;
+      opciones.bounds = L.latLngBounds([sur, oeste], [norte, este]);
+    }
+    const capa = L.tileLayer(configMapa.tiles_url, opciones).addTo(mapaBloqueo);
+    if (configMapa.tiles_oscuras) {
+      const contenedorTeselas = capa.getContainer();
+      if (contenedorTeselas) contenedorTeselas.classList.add('teselas-oscuras');
+    }
+  }
+
+  L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(mapaBloqueo);
+
+  mapaBloqueo.on('click', (ev) => {
+    fijarPuntoBloqueo(ev.latlng.lat, ev.latlng.lng, 'mapa');
+  });
+
+  actualizarMarcadorGps();
+  return mapaBloqueo;
+}
+
+function abrirDlgBloqueo() {
+  estado.puntoBloqueo = null;
+  if (marcadorBloqueo) {
+    marcadorBloqueo.remove();
+    marcadorBloqueo = null;
+  }
+  $('dlg-bloqueo').showModal();
+  crearMapaBloqueo();
+
+  // El diálogo aún no tiene su tamaño final al abrirse: se recalcula y se
+  // parte de la posición GPS actual (si ya hay fix).
+  setTimeout(() => {
+    if (!mapaBloqueo) return;
+    mapaBloqueo.invalidateSize();
+    const actual = puntoActual();
+    if (actual) {
+      fijarPuntoBloqueo(actual.lat, actual.lon, 'GPS');
+      mapaBloqueo.setView([actual.lat, actual.lon], 16);
+    } else {
+      const c = centroMapa();
+      mapaBloqueo.setView([c.lat, c.lon], 15);
+      pintarPuntoBloqueo();
+    }
+    actualizarMarcadorGps();
+  }, 120);
+}
+
+function usarGpsBloqueo() {
+  const actual = puntoActual();
+  if (!actual) return toast('Esperando señal GPS…', 'err');
+  crearMapaBloqueo();
+  fijarPuntoBloqueo(actual.lat, actual.lon, 'GPS');
+  if (mapaBloqueo) mapaBloqueo.setView([actual.lat, actual.lon], 16);
+  actualizarMarcadorGps();
+}
+
+// --------------------------------------------------------------------------
 // Reportes
 // --------------------------------------------------------------------------
 async function registrarBloqueo() {
-  const punto = puntoActual();
-  if (!punto) return toast('Esperando señal GPS…', 'err');
+  const punto = estado.puntoBloqueo || puntoActual();
+  if (!punto) return toast('Selecciona un punto en el mapa o espera al GPS', 'err');
   const payload = {
     tipo_obstaculo: $('obstaculo').value,
     lat: punto.lat,
     lon: punto.lon,
     radio_bloqueo_m: Number($('radio-bloqueo').value) || 15,
     descripcion: $('desc-bloqueo').value || null,
-    timestamp: punto.timestamp,
+    timestamp: punto.timestamp || new Date().toISOString(),
     rescatista_id: rescatistaId,
   };
   await encolar('bloqueo', payload);
   await refrescarColaUI();
+  estado.puntoBloqueo = null;
   toast('Bloqueo guardado en la cola local', 'ok');
   sincronizar(true);
 }
@@ -348,7 +590,8 @@ async function alternarPeinado() {
 // Arranque
 // --------------------------------------------------------------------------
 function conectarEventos() {
-  $('btn-bloqueo').addEventListener('click', () => $('dlg-bloqueo').showModal());
+  $('btn-bloqueo').addEventListener('click', abrirDlgBloqueo);
+  $('btn-gps-bloqueo').addEventListener('click', usarGpsBloqueo);
   $('btn-riesgo').addEventListener('click', () => $('dlg-riesgo').showModal());
   $('btn-peinado').addEventListener('click', alternarPeinado);
   $('btn-sincronizar').addEventListener('click', () => sincronizar(false));
@@ -378,6 +621,7 @@ function conectarEventos() {
 
 async function iniciar() {
   actualizarCabecera();
+  cargarConfigMapa();
   try {
     db = await abrirDB();
   } catch (err) {
