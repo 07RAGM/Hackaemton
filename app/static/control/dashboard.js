@@ -23,6 +23,8 @@ let origen = null;
 let destino = null;
 let modoPunto = null;
 let primeraCarga = true;
+let velocidadKmh = 30;
+const VENTANA_POSICIONES_SEG = 300;
 let centroConfig = { lat: 19.0433, lon: -98.1987 };
 
 const $ = (id) => document.getElementById(id);
@@ -34,12 +36,6 @@ const CAPAS_UI = [
   ['chk-posiciones', 'posiciones'],
 ];
 
-const PRESETS = {
-  tactico: ['bloqueos', 'riesgos', 'zonas', 'posiciones'],
-  rescate: ['riesgos', 'zonas', 'posiciones'],
-  ruta: ['bloqueos', 'posiciones'],
-};
-
 // --------------------------------------------------------------------------
 // Utilidades
 // --------------------------------------------------------------------------
@@ -50,26 +46,6 @@ function log(texto, clase = '') {
   ev.innerHTML = `<b>${texto}</b><time>${new Date().toLocaleTimeString()}</time>`;
   caja.prepend(ev);
   while (caja.children.length > 40) caja.removeChild(caja.lastChild);
-}
-
-function led(id, estado) { $(id).className = 'led ' + estado; }
-
-function marcarBanner(estado) {
-  const b = $('banner');
-  const t = $('banner-txt');
-  b.className = 'banner';
-  if (estado === 'ok') {
-    b.textContent = 'EN VIVO';
-    t.textContent = 'Nodo mesh conectado · datos en tiempo real';
-  } else if (estado === 'warn') {
-    b.classList.add('warn');
-    b.textContent = 'RECONECTANDO';
-    t.textContent = 'Enlace en vivo interrumpido · reintentando conexión';
-  } else {
-    b.classList.add('bad');
-    b.textContent = 'SIN ENLACE';
-    t.textContent = 'No se pudo contactar al nodo · mostrando datos locales';
-  }
 }
 
 function marcarNodo(estado, texto) {
@@ -150,6 +126,7 @@ async function iniciarMapa() {
     config = await (await fetch(`${API}/api/config`)).json();
   } catch (_) { /* centro por defecto */ }
   centroConfig = config.centro || centroConfig;
+  if (Number(config.velocidad_m_s) > 0) velocidadKmh = Math.round(Number(config.velocidad_m_s) * 3.6);
 
   const fuenteGrafo = String(config.fuente_grafo || '').toLowerCase();
   const esAcapulco = fuenteGrafo.includes('acapulco');
@@ -392,13 +369,6 @@ function renderEstadoGlobal(fc) {
     if (!activos.has(id)) { item.grupo.remove(); marcadoresBloqueo.delete(id); }
   }
 
-  const motor = fc.metadata?.motor_ruteo;
-  if (motor) {
-    $('txt-grafo').textContent = `${motor.nodos} nodos`;
-    led('led-grafo', 'ok');
-  }
-  led('led-api', 'ok');
-  $('txt-api').textContent = 'ok';
   marcarNodo('ok', 'en línea');
   actualizarMetricas();
 
@@ -406,16 +376,12 @@ function renderEstadoGlobal(fc) {
 }
 
 async function cargarEstadoGlobal() {
-  const ventana = Number($('sel-ventana').value) || 0;
+  const ventana = VENTANA_POSICIONES_SEG;
   try {
     const fc = await (await fetch(`${API}/api/control/estado-global?segundos_posiciones=${ventana}`)).json();
     renderEstadoGlobal(fc);
-    if (!ws || ws.readyState !== WebSocket.OPEN) marcarBanner('warn');
   } catch (err) {
-    led('led-api', 'bad');
-    $('txt-api').textContent = 'error';
     marcarNodo('bad', 'sin enlace');
-    marcarBanner('bad');
   }
 }
 
@@ -480,7 +446,7 @@ async function calcularRuta() {
   }
   actualizarMarcadorPunto('origen', origen);
   actualizarMarcadorPunto('destino', destino);
-  const velKmh = Number($('in-velocidad').value) || 30;
+  const velKmh = velocidadKmh;
   try {
     const params = new URLSearchParams({
       origen_lat: origen[0], origen_lon: origen[1],
@@ -564,17 +530,11 @@ function conectarWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws/control`);
   ws.onopen = () => {
-    led('led-ws', 'ok');
-    $('txt-ws').textContent = 'ok';
-    marcarBanner('ok');
-    marcarNodo('ok', 'en vivo');
+    marcarNodo('ok', 'en línea');
     log('Enlace en vivo establecido');
   };
   ws.onmessage = (e) => { try { manejarMensaje(JSON.parse(e.data)); } catch { /* ignora */ } };
   ws.onclose = () => {
-    led('led-ws', 'bad');
-    $('txt-ws').textContent = 'reconectando';
-    marcarBanner('warn');
     marcarNodo('warn', 'reconectando');
     clearTimeout(reintento);
     reintento = setTimeout(conectarWS, 3000);
@@ -620,19 +580,6 @@ function manejarMensaje(msg) {
 // --------------------------------------------------------------------------
 // Controles
 // --------------------------------------------------------------------------
-function aplicarPreset(nombre) {
-  const activas = new Set(PRESETS[nombre] || PRESETS.tactico);
-  for (const [id, capa] of CAPAS_UI) {
-    const activa = activas.has(capa);
-    $(id).checked = activa;
-    if (activa) CAPAS[capa].addTo(mapa);
-    else mapa.removeLayer(CAPAS[capa]);
-  }
-  document.querySelectorAll('#presets .opt').forEach((btn) => {
-    btn.classList.toggle('activo', btn.dataset.preset === nombre);
-  });
-}
-
 function enlazarControles() {
   const modo = (cual) => {
     modoPunto = modoPunto === cual ? null : cual;
@@ -648,23 +595,12 @@ function enlazarControles() {
   $('btn-limpiar-ruta').addEventListener('click', limpiarRuta);
   $('btn-reset').addEventListener('click', reiniciarVista);
 
-  $('sel-ventana').addEventListener('change', cargarEstadoGlobal);
-
-  $('in-velocidad').addEventListener('input', (ev) => {
-    $('txt-velocidad').textContent = ev.target.value;
-  });
-
   for (const [id, capa] of CAPAS_UI) {
     $(id).addEventListener('change', (ev) => {
       if (ev.target.checked) CAPAS[capa].addTo(mapa);
       else mapa.removeLayer(CAPAS[capa]);
-      document.querySelectorAll('#presets .opt').forEach((btn) => btn.classList.remove('activo'));
     });
   }
-
-  document.querySelectorAll('#presets .opt').forEach((btn) => {
-    btn.addEventListener('click', () => aplicarPreset(btn.dataset.preset));
-  });
 
   const botonesZoom = [...document.querySelectorAll('#zoom-rail button')];
   const marcarZoom = () => {
@@ -715,18 +651,10 @@ function enlazarScrollHint() {
   setTimeout(actualizar, 300);
 }
 
-function iniciarReloj() {
-  const tic = () => { $('txt-reloj').textContent = new Date().toLocaleTimeString(); };
-  tic();
-  setInterval(tic, 1000);
-}
-
 // --------------------------------------------------------------------------
 // Arranque
 // --------------------------------------------------------------------------
 async function iniciar() {
-  iniciarReloj();
-  marcarBanner('warn');
   await iniciarMapa();
   enlazarControles();
   enlazarScrollHint();

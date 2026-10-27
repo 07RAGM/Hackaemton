@@ -42,40 +42,8 @@
       flex: none; height: 78px; display: flex; align-items: center; gap: 18px;
       padding: 0 30px; border-bottom: 1px solid var(--linea); background: var(--bg);
     }
-    .brand { display: flex; align-items: center; gap: 12px; text-decoration: none; }
-    .logo {
-      width: 27px; height: 27px; border-radius: 50%;
-      background-image: radial-gradient(circle, rgba(255,255,255,.92) 1px, transparent 1.35px);
-      background-size: 5px 5px; background-position: center; opacity: .78;
-    }
-    .brand-name { font-size: 24px; font-weight: 400; letter-spacing: -.6px; }
-    .brand-name .punto { color: var(--acento); }
-    .brand-sub {
-      font-size: 9px; letter-spacing: 2.4px; color: var(--dim-2);
-      font-weight: 600; margin-left: 2px; padding-top: 4px;
-    }
-    .topbar-status {
-      display: flex; align-items: center; gap: 9px; min-width: 0; margin-left: 10px;
-    }
-    .topbar-status .banner-txt {
-      max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    }
-    .topbar-status .sistema { margin-top: 0; flex-wrap: nowrap; }
-    .top-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
-    .vista-switch {
-      display: inline-flex; padding: 3px; border: 1px solid var(--linea);
-      border-radius: 10px; background: var(--panel); overflow: hidden;
-    }
-    .vista-switch a {
-      padding: 7px 15px; font-size: 11.5px; color: var(--dim); text-decoration: none;
-      font-weight: 500; border-radius: 7px; transition: color .15s ease, background .15s ease;
-    }
-    .vista-switch a.activo { background: var(--texto); color: #0a0a0a; }
-    .vista-switch a:not(.activo):hover { color: var(--texto); }
-    .reloj {
-      font-variant-numeric: tabular-nums; font-size: 12px; color: var(--dim);
-      min-width: 64px; text-align: right;
-    }
+    .brand { display: flex; align-items: center; text-decoration: none; }
+    .topbar-logo { display: block; height: 42px; width: auto; }
 
     .shell {
       flex: 1; min-height: 0; display: grid; position: relative;
@@ -240,20 +208,6 @@
     }
     .campo input::placeholder { color: #3d3d3d; }
     .campo input:focus { outline: none; border-bottom-color: var(--acento); }
-    .select-mini {
-      width: 100%; background: var(--panel-2); border: 1px solid var(--linea);
-      color: var(--texto); border-radius: 8px; padding: 7px 9px; font-size: 11.5px;
-      cursor: pointer;
-    }
-    .select-mini:focus { outline: none; border-color: var(--acento); }
-
-    .rango-cab {
-      display: flex; justify-content: space-between; align-items: baseline;
-      font-size: 9.5px; color: var(--dim-2); margin: 0 0 2px;
-      text-transform: uppercase; letter-spacing: .5px;
-    }
-    .rango-cab b { color: var(--dim); font-weight: 500; letter-spacing: 0; }
-    input[type="range"] { width: 100%; accent-color: var(--acento); margin: 0 0 4px; }
 
     .btn {
       border: 1px solid var(--linea); background: var(--panel-2); color: var(--texto);
@@ -321,21 +275,7 @@
       padding: 13px 14px; margin-bottom: 10px;
     }
     .nodo-cab { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-    .banner {
-      background: rgba(214,242,74,.12); color: var(--acento); font-weight: 700;
-      font-size: 9px; letter-spacing: 1.2px; padding: 4px 8px; border-radius: 5px;
-      text-transform: uppercase; white-space: nowrap; border: 1px solid rgba(214,242,74,.2);
-    }
-    .banner.warn { background: rgba(255,184,77,.12); color: var(--ambar); border-color: rgba(255,184,77,.22); }
-    .banner.bad { background: rgba(255,107,107,.12); color: var(--rojo); border-color: rgba(255,107,107,.22); }
     .banner-txt { font-size: 10.5px; color: var(--dim-2); line-height: 1.4; flex: 1; min-width: 120px; }
-    .sistema { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
-    .mini-pill {
-      display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px;
-      border: 1px solid var(--linea-suave); border-radius: 999px;
-      font-size: 9.5px; color: var(--dim-2); text-transform: uppercase; letter-spacing: .4px;
-    }
-    .mini-pill b { color: var(--dim); font-weight: 500; text-transform: none; letter-spacing: 0; }
     .led { width: 5px; height: 5px; border-radius: 50%; background: var(--dim-2); flex: none; }
     .led.ok { background: var(--verde); }
     .led.warn { background: var(--ambar); }
@@ -400,38 +340,6 @@
     }
     .hud-chip b { color: var(--texto); font-weight: 500; }
     .hud-chip.mono { font-variant-numeric: tabular-nums; }
-
-    .mapa-paneles {
-      position: absolute; z-index: 600; left: 14px; bottom: 14px;
-      display: flex; align-items: stretch; gap: 10px; pointer-events: none;
-    }
-    .mapa-paneles > * { pointer-events: auto; }
-    .panel-mapa {
-      background: rgba(14,14,14,.9); border: 1px solid var(--linea);
-      border-radius: 11px; padding: 12px 15px; backdrop-filter: blur(10px);
-      min-height: 76px; display: flex; flex-direction: column; justify-content: space-between;
-    }
-    .panel-kicker { font-size: 10.5px; color: var(--dim-2); margin-bottom: 9px; letter-spacing: .3px; }
-    .panel-opts { display: flex; align-items: center; gap: 9px; }
-    .opt {
-      border: 0; background: transparent; color: var(--dim); padding: 4px 8px;
-      border-radius: 5px; font-size: 11px; cursor: pointer; white-space: nowrap;
-      transition: background .15s ease, color .15s ease;
-    }
-    .opt:hover { color: var(--texto); }
-    .opt.activo { background: var(--texto); color: #0a0a0a; }
-    .leyenda-riesgo { display: flex; align-items: center; gap: 12px; font-size: 10.5px; color: var(--dim); }
-    .leyenda-riesgo span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-    .leyenda-riesgo i { width: 5px; height: 5px; border-radius: 50%; display: block; }
-    .leyenda-marcadores {
-      display: flex; align-items: center; gap: 12px; margin-top: 8px; padding-top: 8px;
-      border-top: 1px solid var(--linea-suave); font-size: 10px; color: var(--dim);
-    }
-    .leyenda-marcadores span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-    .glyph { width: 7px; height: 7px; border-radius: 50%; display: block; }
-    .glyph.rescate { background: var(--texto); box-shadow: 0 0 0 2px rgba(214,242,74,.3); }
-    .glyph.bloqueo { background: var(--rojo); }
-    .glyph.riesgo { background: var(--ambar); border-radius: 2px; }
 
     .zoom-rail {
       position: absolute; z-index: 600; right: 20px; top: 50%; transform: translateY(-50%);
@@ -513,13 +421,10 @@
       .sidebar { padding-left: 24px; padding-right: 24px; }
       .scroll-hint { width: 340px; }
       .timeline { display: none; }
-      .leyenda-riesgo { display: none; }
-      .topbar-status .banner-txt { display: none; }
+      .topbar-logo { height: 38px; }
     }
     @media (max-width: 900px) {
       .topbar { height: 64px; padding: 0 18px; }
-      .brand-name { font-size: 21px; }
-      .topbar-status .sistema { display: none; }
       .mapa-toolbar .banner-txt { display: none; }
       .scroll-hint { display: none; }
       .shell { grid-template-columns: 1fr; grid-template-rows: minmax(0, 43vh) minmax(0, 1fr); }
@@ -529,17 +434,13 @@
       }
       .contenido { padding: 12px; }
       .mapa-toolbar { gap: 8px; padding: 10px 12px; }
-      .mapa-paneles .panel-mapa:last-child { display: none; }
       .hud-sup-der { display: none; }
       .hud-inf-der { display: none; }
       .hero-valor { font-size: 72px; }
     }
     @media (max-width: 560px) {
       .seg button { padding: 6px 8px; font-size: 10.5px; }
-      .reloj { display: none; }
-      .brand-sub { display: none; }
-      .topbar-status { display: none; }
-      .mapa-paneles { left: 10px; bottom: 10px; }
+      .topbar-logo { height: 30px; }
       .zoom-rail { right: 10px; }
     }
   </style>
@@ -547,22 +448,13 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <a class="brand" href="/control/" aria-label="NODOMX Estación de Control">
-        <span class="logo" aria-hidden="true"></span>
-        <span class="brand-name">NODOMX</span>
-        <span class="brand-sub">CONTROL</span>
+      <a class="brand" href="/control/" aria-label="NODO MX · Estación de Control">
+        <img
+          class="topbar-logo"
+          src="/control/logo.png"
+          alt="NODO MX · Red Comunitaria de Emergencias"
+        />
       </a>
-      <div class="topbar-status">
-        <span class="banner" id="banner">EN VIVO</span>
-        <span class="banner-txt" id="banner-txt">Nodo mesh conectado · datos en tiempo real</span>
-      </div>
-      <div class="top-right">
-        <nav class="vista-switch" aria-label="Cambiar de vista">
-          <a href="/control/" class="activo" aria-current="page">Control</a>
-          <a href="/cliente/">Campo</a>
-        </nav>
-        <span class="reloj" id="txt-reloj">--:--:--</span>
-      </div>
     </header>
 
     <div class="shell">
@@ -590,8 +482,8 @@
 
         <section class="seccion">
           <div class="seccion-cab">
-            <h2>Capas tácticas</h2>
-            <span class="info" title="Capas visibles en el mapa ">i</span>
+            <h2>Capas</h2>
+            <span class="info" title="Capas visibles en el mapa">i</span>
           </div>
           <div class="capas">
             <label class="capa" title="Bloqueos viales">
@@ -623,16 +515,6 @@
               <span class="switch"></span>
             </label>
           </div>
-
-          <div class="campo" style="margin-top:12px">
-            <label for="sel-ventana">Ventana de posiciones</label>
-            <select id="sel-ventana" class="select-mini">
-              <option value="60">Último minuto</option>
-              <option value="300" selected>Últimos 5 minutos</option>
-              <option value="900">Últimos 15 minutos</option>
-              <option value="0">Todo el histórico</option>
-            </select>
-          </div>
         </section>
 
         <section class="seccion" id="seccion-ruteo">
@@ -658,12 +540,6 @@
             <span>Auto-recalcular al bloquear</span>
           </label>
 
-          <div class="rango-cab" style="margin-top:10px">
-            <span>Velocidad</span>
-            <b><span id="txt-velocidad">30</span> km/h</b>
-          </div>
-          <input type="range" id="in-velocidad" min="10" max="80" step="5" value="30" />
-
           <div class="fila botones-ruta">
             <button class="btn primario" id="btn-ruta">Calcular ruta</button>
             <button class="btn ghost" id="btn-limpiar-ruta" style="flex:0 0 84px">Limpiar</button>
@@ -674,23 +550,9 @@
         <div class="pie-sidebar">
           <div class="nodo">
             <div class="nodo-cab">
-              <span style="font-size:11.5px;color:var(--dim)">Estado del nodo</span>
+              <span style="font-size:11.5px;color:var(--dim)">Estado del grafo</span>
               <span class="mini-status ok" id="nodo-estado">
-                <span class="dot"></span> local
-              </span>
-            </div>
-            <div class="sistema">
-              <span class="mini-pill">
-                <span id="led-grafo" class="led ok"></span> Grafo
-                <b id="txt-grafo">—</b>
-              </span>
-              <span class="mini-pill">
-                <span id="led-api" class="led"></span> API
-                <b id="txt-api">—</b>
-              </span>
-              <span class="mini-pill">
-                <span id="led-ws" class="led"></span> En vivo
-                <b id="txt-ws">—</b>
+                <span class="dot"></span> en línea
               </span>
             </div>
           </div>
@@ -701,7 +563,7 @@
       <main class="contenido">
         <section class="mapa-card">
           <div class="mapa-toolbar">
-            <span style="font-size:11px;color:var(--dim)">Mapa táctico</span>
+            <span style="font-size:11px;color:var(--dim)">Mapa</span>
             <span class="banner-txt" id="txt-fondo">fondo local offline</span>
             <span style="flex:1"></span>
             <button class="btn-hoy" id="btn-reset" title="Reiniciar vista">
@@ -721,7 +583,7 @@
             <div id="mapa"></div>
 
             <div class="hud hud-sup-izq">
-              <span class="hud-chip" id="chip-fondo"><span class="led warn"></span> Fondo táctico local</span>
+              <span class="hud-chip" id="chip-fondo"><span class="led warn"></span> Fondo local</span>
               <span class="hud-chip mono" id="chip-coords">Coordenadas —</span>
             </div>
             <div class="hud hud-sup-der">
@@ -729,31 +591,6 @@
             </div>
             <div class="hud hud-inf-der">
               <span class="hud-chip" id="chip-centro">Centro —</span>
-            </div>
-
-            <div class="mapa-paneles">
-              <div class="panel-mapa">
-                <div class="panel-kicker">Modo</div>
-                <div class="panel-opts" id="presets">
-                  <button class="opt activo" data-preset="tactico">Táctico</button>
-                  <button class="opt" data-preset="rescate">Rescate</button>
-                  <button class="opt" data-preset="ruta">Ruta</button>
-                </div>
-              </div>
-              <div class="panel-mapa">
-                <div class="panel-kicker">Índice de riesgo</div>
-                <div class="leyenda-riesgo">
-                  <span><i style="background:var(--rojo)"></i>Crítico</span>
-                  <span><i style="background:var(--ambar)"></i>Alto</span>
-                  <span><i style="background:var(--dim)"></i>Medio</span>
-                  <span><i style="background:var(--dim-2)"></i>Bajo</span>
-                </div>
-                <div class="leyenda-marcadores">
-                  <span><i class="glyph rescate"></i>Unidad</span>
-                  <span><i class="glyph bloqueo"></i>Bloqueo</span>
-                  <span><i class="glyph riesgo"></i>Riesgo</span>
-                </div>
-              </div>
             </div>
 
             <div class="zoom-rail" id="zoom-rail" aria-label="Nivel de zoom">
